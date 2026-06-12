@@ -10,9 +10,10 @@ services:
     # stdin/tty keep the server console available via `docker attach bedrock`
     stdin_open: true
     tty: true
-    ports:
-      - "${SERVER_PORT:-19132}:19132/udp"
-      - "${SERVER_PORT_V6:-19133}:19133/udp"
+    # Host networking so the server answers LAN discovery broadcasts and
+    # shows up in the game's server list. Note this also puts the console
+    # SSH (port 2222, password = RCON_PASSWORD) on the LAN.
+    network_mode: host
     environment:
       EULA: "${EULA:?Set EULA=TRUE in .env to accept the Minecraft EULA}"
       VERSION: "${VERSION:-LATEST}"
@@ -31,6 +32,8 @@ services:
       # service uses it for save hold/resume.
       ENABLE_SSH: "true"
       RCON_PASSWORD: "${RCON_PASSWORD:?Set RCON_PASSWORD in .env (console password used by the backup service)}"
+      SERVER_PORT: "${SERVER_PORT:-19132}"
+      SERVER_PORT_V6: "${SERVER_PORT_V6:-19133}"
     volumes:
       - ./data:/data
 
@@ -40,6 +43,10 @@ services:
     restart: unless-stopped
     depends_on:
       - bedrock
+    # The server runs with host networking, so reach its console via the
+    # host gateway rather than a container name
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       TZ: "${TZ:-UTC}"
     volumes:
@@ -75,9 +82,13 @@ services:
       - bedrock
     ports:
       - "${DASH_PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       TZ: "${TZ:-UTC}"
       LEVEL_NAME: "${LEVEL_NAME:-world}"
+      SERVER_HOST: "host.docker.internal"
+      SERVER_PORT: "${SERVER_PORT:-19132}"
     volumes:
       - ./data:/server:ro
       - ./backups:/backups:ro

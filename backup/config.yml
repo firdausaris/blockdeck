@@ -4,9 +4,10 @@
 containers:
   bedrock:
     - name: bedrock
-      # Server console over the internal compose network; the password file
-      # is generated from RCON_PASSWORD in .env by scripts/bootstrap.sh
-      ssh: bedrock:2222
+      # The server uses host networking, so its console is reached via the
+      # host gateway; the password file is generated from RCON_PASSWORD in
+      # .env by scripts/bootstrap.sh
+      ssh: host.docker.internal:2222
       passwordFile: /config/console-password.yml
       worlds:
         # Keep the world name in sync with LEVEL_NAME in .env
