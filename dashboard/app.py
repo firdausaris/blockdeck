@@ -556,6 +556,39 @@ def render_map():
     }
 
 
+class Command(BaseModel):
+    command: str
+
+
+@app.post("/api/command")
+def run_command(body: Command):
+    """Run a server console command and return the server's response lines."""
+    cmd = body.command.strip().lstrip("/")
+    if not cmd:
+        raise HTTPException(400, "empty command")
+    try:
+        container = client.containers.get(SERVER_CONTAINER)
+    except docker.errors.NotFound:
+        raise HTTPException(404, "server container not found")
+
+    since = datetime.now(tz=timezone.utc)
+    result = container.exec_run(["send-command", cmd])
+    if result.exit_code != 0:
+        raise HTTPException(
+            500, f"send-command failed: {result.output.decode(errors='replace').strip()}"
+        )
+    # the console has no request/response channel — give the server a
+    # moment, then collect what it logged since the command went in
+    time.sleep(1.2)
+    raw = container.logs(since=since).decode("utf-8", "replace")
+    output = [
+        re.sub(r"^\[[^\]]*\]\s*", "", line)  # strip the [date INFO] prefix
+        for line in raw.splitlines()
+        if line.strip()
+    ]
+    return {"ok": True, "output": output}
+
+
 class Message(BaseModel):
     message: str
 

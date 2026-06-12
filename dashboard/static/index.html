@@ -56,6 +56,13 @@
   li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
              white-space: nowrap; }
   #activity li svg { width: 15px; height: 15px; flex: none; }
+  #conout {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 13px; margin: 0 0 12px;
+    font: 12.5px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  #conout .cmd { color: var(--accent); }
   li a.dl {
     display: inline-flex; align-items: center; gap: 6px;
     color: var(--text); text-decoration: none;
@@ -222,6 +229,20 @@
       <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         Activity</h2>
       <ul id="activity"></ul>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+        Console</h2>
+      <pre id="conout" style="display:none"></pre>
+      <div class="sayrow" style="margin-top:0">
+        <input id="conin" spellcheck="false"
+          placeholder='Server command — e.g.  gamerule showcoordinates true · give Steve diamond 5 · op Steve'
+          onkeydown="conKey(event)">
+        <button onclick="sendCommand()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+          Run</button>
+      </div>
     </div>
 
     <div class="card" style="grid-column: 1 / -1">
@@ -458,6 +479,44 @@ async function actJson(url, payload, confirmMsg) {
     document.querySelectorAll('button').forEach(b => b.disabled = false);
     refresh();
   }
+}
+
+let conHistory = [], conPos = -1;
+
+function conKey(e) {
+  if (e.key === 'Enter') sendCommand();
+  else if (e.key === 'ArrowUp' && conHistory.length) {
+    conPos = Math.min(conPos + 1, conHistory.length - 1);
+    $('conin').value = conHistory[conHistory.length - 1 - conPos];
+  } else if (e.key === 'ArrowDown' && conPos >= 0) {
+    conPos--;
+    $('conin').value = conPos < 0 ? '' : conHistory[conHistory.length - 1 - conPos];
+  }
+}
+
+async function sendCommand() {
+  const cmd = $('conin').value.trim();
+  if (!cmd) return;
+  conHistory.push(cmd); conPos = -1;
+  $('conin').value = '';
+  const out = $('conout');
+  out.style.display = '';
+  out.insertAdjacentHTML('beforeend', `<span class="cmd">&gt; ${esc(cmd)}</span>\n`);
+  try {
+    const r = await fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd }),
+    });
+    const body = await r.json();
+    const lines = r.ok
+      ? (body.output && body.output.length ? body.output : ['(no output)'])
+      : [body.detail || 'failed'];
+    out.insertAdjacentHTML('beforeend', esc(lines.join('\n')) + '\n');
+  } catch (e) {
+    out.insertAdjacentHTML('beforeend', esc('request failed: ' + e) + '\n');
+  }
+  out.scrollTop = out.scrollHeight;
 }
 
 function copySeed() {
