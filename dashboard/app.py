@@ -385,7 +385,7 @@ def map_info():
     }
 
 
-def backups_summary(limit: int = 5):
+def backups_summary(limit: int | None = 5):
     files = sorted(
         BACKUPS_DIR.glob("*.mcworld"),
         key=lambda p: p.stat().st_mtime,
@@ -432,6 +432,11 @@ def status():
         "auth": bool(DASH_PASSWORD),
         "checked_at": datetime.now(tz=timezone.utc).isoformat(),
     }
+
+
+@app.get("/api/backups")
+def all_backups():
+    return backups_summary(limit=None)
 
 
 @app.get("/api/backups/{name}")

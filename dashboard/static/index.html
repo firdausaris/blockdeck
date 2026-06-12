@@ -56,6 +56,8 @@
   li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
              white-space: nowrap; }
   #activity li svg { width: 15px; height: 15px; flex: none; }
+  .morelink { cursor: pointer; }
+  .morelink:hover { color: var(--accent); }
   #conout {
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
     padding: 10px 13px; margin: 0 0 12px;
@@ -384,13 +386,18 @@ async function refresh() {
   ).join('') || '<li class="muted">nothing yet — joins, leaves and restarts show up here</li>';
 
   $('backupcount').textContent = st.backups.count;
-  const older = st.backups.count - st.backups.recent.length;
-  $('backups').innerHTML = (st.backups.recent.map(b =>
+  let list = st.backups.recent;
+  if (backupsExpanded && st.backups.count > list.length) {
+    try { list = (await (await fetch('/api/backups')).json()).recent; } catch {}
+  }
+  const older = st.backups.count - list.length;
+  $('backups').innerHTML = (list.map(b =>
     `<li><a class="dl grow" href="/api/backups/${encodeURIComponent(b.name)}"
         download title="download ${esc(b.name)}">${ICON_DL}${fmtAgo(b.time)}</a>
         <span class="muted">${b.size}</span></li>`
   ).join('') || '<li class="muted">no backups yet</li>')
-  + (older > 0 ? `<li class="muted">+ ${older} older in backups/</li>` : '');
+  + (older > 0 ? `<li><span class="muted morelink" onclick="toggleBackups()">+ ${older} older — show all</span></li>` : '')
+  + (backupsExpanded ? `<li><span class="muted morelink" onclick="toggleBackups()">show less</span></li>` : '');
 
   $('worlds').innerHTML = st.worlds.map(w =>
     `<li><span class="grow">${esc(w.name)}</span>
@@ -405,6 +412,12 @@ function setBar(id, pct) {
   const el = $(id);
   el.style.width = (pct ?? 0) + '%';
   el.classList.toggle('hot', (pct ?? 0) > 85);
+}
+
+let backupsExpanded = false;
+function toggleBackups() {
+  backupsExpanded = !backupsExpanded;
+  refresh();
 }
 
 function toggleWorldForm() {
