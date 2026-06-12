@@ -1,16 +1,32 @@
 # blockdeck
 
-A replicable, Docker-based Minecraft Bedrock server with automated updates,
-scheduled off-site backups, a status dashboard, and a world map.
+A self-hosted Minecraft Bedrock server stack in Docker — clone, run one
+script, and get a server that takes care of itself:
 
-Built on [itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server).
+- **Automatic updates** — checks Mojang's release API, warns players
+  in-game, restarts, verifies it came back up
+- **Hot backups** — `.mcworld` snapshots with no downtime, daily and when
+  the last player logs out, with retention; optional encrypted off-site
+  replication (restic) to another machine
+- **Web dashboard** (password-protected) — live status, players by name,
+  world seed, backup downloads, and one-click backup / update / restart /
+  broadcast
+- **World map** — zoomable [uNmINeD](https://unmined.net) render of your
+  world, embedded in the dashboard
+- **Multi-world** — create (name + seed), import `.mcworld`, switch the
+  active world from the CLI or the dashboard
+- **LAN discovery** — shows up in the game's server list automatically
+  (host networking)
+
+Built on [itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server)
+and [Bedrockifier](https://github.com/Kaiede/Bedrockifier).
 
 ## Quick start
 
 On a fresh Ubuntu/Debian machine:
 
 ```bash
-git clone <this-repo> && cd blockdeck
+git clone https://github.com/firdausaris/blockdeck.git && cd blockdeck
 cp .env.example .env        # review settings (server name, gamemode, allowlist...)
 ./scripts/bootstrap.sh      # installs Docker if needed, starts the server
 ```
@@ -83,8 +99,8 @@ files (importable by any Bedrock client). By default it backs up daily at
 [`backup/config.yml`](backup/config.yml).
 
 Set `RCON_PASSWORD` and `TZ` in `.env` — `bootstrap.sh` generates the
-console credentials the backup service needs. If you change `LEVEL_NAME`,
-update the world path in `backup/config.yml` to match.
+console credentials the backup service needs. Backups always track the
+active world: switching worlds re-points the backup service automatically.
 
 ```bash
 docker compose logs -f backup    # watch backup activity
@@ -178,7 +194,7 @@ docker attach bedrock                      # interactive console (detach: Ctrl-p
 ## Layout
 
 ```
-docker-compose.yml   server + backup + offsite services
+docker-compose.yml   all services: server, backup, updater, dashboard, map, offsite
 .env                 your configuration (not committed)
 data/                server binary, configs, worlds (not committed)
 backups/             .mcworld backups (not committed)
@@ -191,11 +207,6 @@ offsite/             restic off-site service (Dockerfile, scripts, ssh key)
 scripts/             bootstrap, world management, restore, console helpers
 ```
 
-## Roadmap
+## License
 
-- [x] Phase 1 — Dockerized server, bootstrap, world import
-- [x] Phase 2 — scheduled hot backups + off-site push (restic) + restore script
-- [x] Phase 3 — automatic update checks with graceful restart
-- [x] Phase 4 — web dashboard (status, players, controls)
-- [x] Phase 5 — rendered world map (uNmINeD)
-- [x] Multi-world: create (name/seed), import .mcworld, switch active world
+[GPL-3.0](LICENSE)
