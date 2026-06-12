@@ -384,11 +384,13 @@ async function refresh() {
   ).join('') || '<li class="muted">nothing yet — joins, leaves and restarts show up here</li>';
 
   $('backupcount').textContent = st.backups.count;
-  $('backups').innerHTML = st.backups.recent.map(b =>
+  const older = st.backups.count - st.backups.recent.length;
+  $('backups').innerHTML = (st.backups.recent.map(b =>
     `<li><a class="dl grow" href="/api/backups/${encodeURIComponent(b.name)}"
         download title="download ${esc(b.name)}">${ICON_DL}${fmtAgo(b.time)}</a>
         <span class="muted">${b.size}</span></li>`
-  ).join('') || '<li class="muted">no backups yet</li>';
+  ).join('') || '<li class="muted">no backups yet</li>')
+  + (older > 0 ? `<li class="muted">+ ${older} older in backups/</li>` : '');
 
   $('worlds').innerHTML = st.worlds.map(w =>
     `<li><span class="grow">${esc(w.name)}</span>
