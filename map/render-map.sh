@@ -33,6 +33,10 @@ fi
 # static servers pick up by default
 [[ -f "$out/unmined.index.html" ]] && cp "$out/unmined.index.html" "$out/index.html"
 
+# Render timestamp for the dashboard (uNmINeD's own files carry the
+# mtimes of its packaged templates, so they can't be used for this)
+touch "$out/.rendered-at"
+
 # Swap the finished render into place
 rm -rf /map/current.old
 [[ -d /map/current ]] && mv /map/current /map/current.old

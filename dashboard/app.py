@@ -131,13 +131,16 @@ def world_seed() -> str | None:
 
 
 def map_info():
-    index = MAP_DIR / "index.html"
-    if not index.exists():
+    if not (MAP_DIR / "index.html").exists():
         return {"rendered": False, "rendered_at": None}
+    # Prefer the renderer's marker file; uNmINeD's own output files carry
+    # template mtimes, not the render time
+    marker = MAP_DIR / ".rendered-at"
+    stamp = marker if marker.exists() else MAP_DIR / "index.html"
     return {
         "rendered": True,
         "rendered_at": datetime.fromtimestamp(
-            index.stat().st_mtime, tz=timezone.utc
+            stamp.stat().st_mtime, tz=timezone.utc
         ).isoformat(),
     }
 
