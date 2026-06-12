@@ -7,6 +7,9 @@ data/
 # World import backups
 *.bak.*
 
+# Rendered map tiles
+map-data/
+
 # Backup output and secrets
 backups/
 backup/console-password.yml

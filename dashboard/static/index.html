@@ -65,6 +65,8 @@
       <h2>Version</h2>
       <div class="big" id="version">–</div>
       <div class="muted" id="uptime"></div>
+      <div class="muted">seed: <span id="seed" title="click to copy"
+        style="cursor:pointer" onclick="copySeed()">–</span></div>
     </div>
     <div class="card">
       <h2>Backups</h2>
@@ -77,6 +79,10 @@
     <button onclick="act('/api/backup', null)">Backup now</button>
     <button onclick="act('/api/update', 'Check for updates now? Players get a 5-minute warning if one is found.')">Check for update</button>
     <button class="warn" onclick="act('/api/restart', 'Restart the server right now? Players will be disconnected without warning.')">Restart server</button>
+    <button onclick="act('/api/render-map', null)">Render map</button>
+    <a id="maplink" href="/map/" target="_blank" style="display:none">
+      <button>Open map <span class="muted" id="maptime"></span></button>
+    </a>
   </div>
 
   <div class="sayrow">
@@ -128,6 +134,12 @@ async function refresh() {
   $('uptime').textContent = st.container.started_at
     ? 'up since ' + fmtAgo(st.container.started_at).replace(' ago', '') : '';
 
+  $('seed').textContent = st.seed || '–';
+  if (st.map && st.map.rendered) {
+    $('maplink').style.display = '';
+    $('maptime').textContent = fmtAgo(st.map.rendered_at);
+  }
+
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
     `<li>${fmtAgo(b.time)} <span class="muted">${b.size_mb} MB</span></li>`
@@ -146,6 +158,11 @@ async function act(url, confirmMsg) {
   } finally {
     document.querySelectorAll('button').forEach(b => b.disabled = false);
   }
+}
+
+function copySeed() {
+  const s = $('seed').textContent;
+  if (s && s !== '–') { navigator.clipboard.writeText(s); toast('seed copied'); }
 }
 
 async function sendSay() {

@@ -11,14 +11,18 @@ from pathlib import Path
 import docker
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 SERVER_HOST = os.environ.get("SERVER_HOST", "bedrock")
 SERVER_PORT = int(os.environ.get("SERVER_PORT", "19132"))
 SERVER_CONTAINER = os.environ.get("SERVER_CONTAINER", "bedrock")
 UPDATER_CONTAINER = os.environ.get("UPDATER_CONTAINER", "bedrock-updater")
+MAP_CONTAINER = os.environ.get("MAP_CONTAINER", "bedrock-map")
+LEVEL_NAME = os.environ.get("LEVEL_NAME", "world")
 BACKUPS_DIR = Path("/backups")
 SERVER_DIR = Path("/server")
+MAP_DIR = Path("/map-data/current")
 
 app = FastAPI(title="blockdeck")
 client = docker.from_env()
@@ -101,6 +105,43 @@ def installed_version() -> str | None:
     return ".".join(str(x) for x in max(versions))
 
 
+def world_seed() -> str | None:
+    """Reads RandomSeed from the world's level.dat (Bedrock NBT).
+
+    Bedrock NBT is uncompressed little-endian; rather than a full parser,
+    locate the Long tag (0x04) named "RandomSeed" (name length 10) and
+    read the 8 bytes after it. Returned as a string: seeds are int64 and
+    would lose precision as a JavaScript number.
+    """
+    level_dat = SERVER_DIR / "worlds" / LEVEL_NAME / "level.dat"
+    if not level_dat.exists():
+        candidates = sorted(SERVER_DIR.glob("worlds/*/level.dat"))
+        if not candidates:
+            return None
+        level_dat = candidates[0]
+    try:
+        data = level_dat.read_bytes()
+    except OSError:
+        return None
+    pos = data.find(b"\x04\x0a\x00RandomSeed")
+    if pos < 0:
+        return None
+    (seed,) = struct.unpack_from("<q", data, pos + 13)
+    return str(seed)
+
+
+def map_info():
+    index = MAP_DIR / "index.html"
+    if not index.exists():
+        return {"rendered": False, "rendered_at": None}
+    return {
+        "rendered": True,
+        "rendered_at": datetime.fromtimestamp(
+            index.stat().st_mtime, tz=timezone.utc
+        ).isoformat(),
+    }
+
+
 def backups_summary(limit: int = 5):
     files = sorted(
         BACKUPS_DIR.glob("*.mcworld"),
@@ -137,7 +178,9 @@ def status():
         "ping": ping,
         "players": players,
         "installed_version": installed_version(),
+        "seed": world_seed(),
         "backups": backups_summary(),
+        "map": map_info(),
         "checked_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 
@@ -157,8 +200,9 @@ def update():
         updater = client.containers.get(UPDATER_CONTAINER)
     except docker.errors.NotFound:
         raise HTTPException(404, "updater container not found")
-    # Detached: the check warns players for several minutes before restarting
-    updater.exec_run(["check-update"], detach=True)
+    # Detached: the check warns players for several minutes before restarting.
+    # Output goes to the container log so it shows in `docker compose logs`.
+    updater.exec_run(["sh", "-c", "check-update >> /proc/1/fd/1 2>&1"], detach=True)
     return {
         "ok": True,
         "message": "Update check started - follow it with: docker compose logs -f updater",
@@ -186,6 +230,19 @@ def backup_now():
     return {"ok": True, "message": "Backup completed."}
 
 
+@app.post("/api/render-map")
+def render_map():
+    try:
+        map_container = client.containers.get(MAP_CONTAINER)
+    except docker.errors.NotFound:
+        raise HTTPException(404, "map container not found")
+    map_container.exec_run(["sh", "-c", "render-map >> /proc/1/fd/1 2>&1"], detach=True)
+    return {
+        "ok": True,
+        "message": "Map render started - it appears here when done (can take a while).",
+    }
+
+
 class Message(BaseModel):
     message: str
 
@@ -206,3 +263,7 @@ def say(body: Message):
 @app.get("/")
 def index():
     return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+
+# The rendered world map; the directory appears after the first render
+app.mount("/map", StaticFiles(directory=MAP_DIR, html=True, check_dir=False))

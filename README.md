@@ -118,13 +118,29 @@ docker compose run --rm -v ./restored:/restored offsite \
 ## Dashboard
 
 `http://<server-ip>:8080` (port: `DASH_PORT` in `.env`) shows live status —
-online players by name, server version and uptime, recent backups — with
-buttons to check for updates, restart the server, and broadcast a message
-to players.
+online players by name, server version and uptime, the world seed (parsed
+from `level.dat`, click to copy), recent backups, and the world map — with
+buttons to back up now, check for updates, restart the server, re-render
+the map, and broadcast a message to players.
 
 It reads player names from the server log and the player count from the
 Bedrock ping protocol, so it works without any server-side mods. **It has
 no authentication**: it is meant for your LAN. Don't port-forward it.
+
+## World map
+
+The `map` service renders a zoomable web map with
+[uNmINeD](https://unmined.net), served by the dashboard at
+`http://<server-ip>:8080/map/`. It renders daily (`MAP_CRON` in `.env`)
+from the **newest backup snapshot** — never the live world, whose database
+can't be read safely while the server writes to it. So the map is only as
+fresh as the last backup, and a brand-new world shows nothing until
+someone has played on it (and a backup has run).
+
+```bash
+docker compose run --rm map render-map   # render right now (or use the
+                                         # dashboard's Render map button)
+```
 
 ## Console commands
 
@@ -144,6 +160,8 @@ backups/             .mcworld backups (not committed)
 backup/              backup service config (config.yml)
 updater/             automatic update service (Dockerfile, scripts)
 dashboard/           web dashboard (FastAPI + static page)
+map/                 world map renderer (uNmINeD CLI)
+map-data/            rendered map tiles (not committed)
 offsite/             restic off-site service (Dockerfile, scripts, ssh key)
 scripts/             bootstrap, world import, restore, console helpers
 ```
@@ -154,4 +172,4 @@ scripts/             bootstrap, world import, restore, console helpers
 - [x] Phase 2 — scheduled hot backups + off-site push (restic) + restore script
 - [x] Phase 3 — automatic update checks with graceful restart
 - [x] Phase 4 — web dashboard (status, players, controls)
-- [ ] Phase 5 — rendered world map (uNmINeD)
+- [x] Phase 5 — rendered world map (uNmINeD)
