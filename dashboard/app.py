@@ -1,6 +1,7 @@
 """blockdeck dashboard — status and controls for the Bedrock server stack."""
 
 import base64
+import json
 import os
 import re
 import secrets
@@ -114,9 +115,18 @@ def ping_server(host: str, port: int, timeout: float = 2.0):
 
 # --- Player names and activity events from the server log ---
 
-CONNECT_RE = re.compile(r"Player connected: ([^,\r\n]+)")
+CONNECT_RE = re.compile(r"Player connected: ([^,\r\n]+?)(?:, xuid: (\d+))?\s*$")
 DISCONNECT_RE = re.compile(r"Player disconnected: ([^,\r\n]+)")
 STARTED_RE = re.compile(r"Server started\.")
+
+
+def operator_xuids() -> set[str]:
+    """Operators from permissions.json (kept current by the 'op' command)."""
+    try:
+        entries = json.loads((SERVER_DIR / "permissions.json").read_text())
+        return {e["xuid"] for e in entries if e.get("permission") == "operator"}
+    except (OSError, ValueError, KeyError, TypeError):
+        return set()
 
 
 def parse_log(container, limit: int = 15):
@@ -127,6 +137,7 @@ def parse_log(container, limit: int = 15):
     """
     log = container.logs(tail=10000, timestamps=True).decode("utf-8", "replace")
     players: list[str] = []
+    xuids: dict[str, str] = {}
     events: list[dict] = []
 
     def stamp(line: str) -> str | None:
@@ -144,6 +155,8 @@ def parse_log(container, limit: int = 15):
             name = m.group(1).strip()
             if name not in players:
                 players.append(name)
+            if m.group(2):
+                xuids[name] = m.group(2)
             events.append({"time": stamp(line), "type": "join", "text": f"{name} joined"})
         elif m := DISCONNECT_RE.search(line):
             name = m.group(1).strip()
@@ -153,7 +166,9 @@ def parse_log(container, limit: int = 15):
         elif STARTED_RE.search(line):
             events.append({"time": stamp(line), "type": "server", "text": "server started"})
 
-    return players, list(reversed(events[-limit:]))
+    ops = operator_xuids()
+    player_infos = [{"name": n, "op": xuids.get(n) in ops} for n in players]
+    return player_infos, list(reversed(events[-limit:]))
 
 
 # --- Local facts: installed version, backups ---

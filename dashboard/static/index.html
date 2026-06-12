@@ -104,6 +104,7 @@
     background: rgba(63,185,106,.12); border-radius: 20px; padding: 2px 9px;
   }
   .badge svg { width: 12px; height: 12px; }
+  .badge.op { color: var(--amber); background: rgba(210,154,58,.12); }
 
   button {
     display: inline-flex; align-items: center; gap: 7px;
@@ -301,6 +302,7 @@ const $ = id => document.getElementById(id);
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8z"/></svg>';
+const ICON_OP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h20"/><path d="M3 14l2-8 5 4 2-6 2 6 5-4 2 8z"/></svg>';
 const EVENT_ICONS = {
   join: '<svg viewBox="0 0 24 24" fill="none" stroke="#3fb96a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>',
   leave: '<svg viewBox="0 0 24 24" fill="none" stroke="#8b95a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
@@ -344,8 +346,9 @@ async function refresh() {
   $('playercount').textContent = st.ping
     ? `${st.ping.players_online} / ${st.ping.players_max}` : '–';
   $('players').innerHTML = st.players.map(p =>
-    `<li><span class="grow">${esc(p)}</span></li>`).join('')
-    || '<li class="muted">nobody online</li>';
+    `<li><span class="grow">${esc(p.name)}</span>` +
+    (p.op ? `<span class="badge op">${ICON_OP}OP</span>` : '') + '</li>'
+  ).join('') || '<li class="muted">nobody online</li>';
 
   $('version').textContent = st.installed_version || '–';
   $('uptime').textContent = st.container.started_at
