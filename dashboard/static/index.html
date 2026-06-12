@@ -70,11 +70,20 @@
   }
   .seedrow button.icon:hover { color: var(--accent); }
   .seedrow button.icon svg { width: 14px; height: 14px; }
-  .seedrow a, footer a {
+  .seedrow { flex-wrap: wrap; }
+  #chunkbase {
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    color: var(--dim); text-decoration: none; font-size: 13px;
+    border: 1px solid var(--line); border-radius: 20px; padding: 2px 10px;
+    transition: color .12s, border-color .12s;
+  }
+  #chunkbase:hover { color: var(--accent); border-color: var(--accent); }
+  #chunkbase svg { width: 13px; height: 13px; flex: none; }
+  footer a {
     color: var(--dim); text-decoration: none;
     border-bottom: 1px dotted var(--dim);
   }
-  .seedrow a:hover, footer a:hover { color: var(--accent); border-color: var(--accent); }
+  footer a:hover { color: var(--accent); border-color: var(--accent); }
   footer {
     display: flex; align-items: center; justify-content: center; gap: 7px;
     margin-top: 34px; color: var(--dim); font-size: 13px;
@@ -185,7 +194,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
         <a id="chunkbase" href="#" target="_blank" rel="noopener" title="open this seed in Chunkbase Seed Map" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           Chunkbase</a>
       </div>
     </div>
