@@ -477,5 +477,12 @@ def index():
     return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
+@app.get("/favicon.svg")
+def favicon():
+    return FileResponse(
+        Path(__file__).parent / "static" / "favicon.svg", media_type="image/svg+xml"
+    )
+
+
 # The rendered world map; the directory appears after the first render
 app.mount("/map", StaticFiles(directory=MAP_DIR, html=True, check_dir=False))
