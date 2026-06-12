@@ -1,4 +1,4 @@
-# mc-monitor
+# blockdeck
 
 A replicable, Docker-based Minecraft Bedrock server with automated updates,
 scheduled off-site backups, a status dashboard, and a world map.
@@ -10,7 +10,7 @@ Built on [itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraf
 On a fresh Ubuntu/Debian machine:
 
 ```bash
-git clone <this-repo> && cd mc-monitor
+git clone <this-repo> && cd blockdeck
 cp .env.example .env        # review settings (server name, gamemode, allowlist...)
 ./scripts/bootstrap.sh      # installs Docker if needed, starts the server
 ```

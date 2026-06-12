@@ -1,3 +1,7 @@
+# Pin the compose project name so container/network names don't depend on
+# whatever the checkout folder happens to be called
+name: blockdeck
+
 services:
   bedrock:
     image: itzg/minecraft-bedrock-server
