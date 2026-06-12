@@ -254,9 +254,13 @@ def say(body: Message):
         raise HTTPException(400, "empty message")
     try:
         container = client.containers.get(SERVER_CONTAINER)
-        container.exec_run(["send-command", "say", text])
+        result = container.exec_run(["send-command", "say", text])
     except docker.errors.NotFound:
         raise HTTPException(404, "server container not found")
+    if result.exit_code != 0:
+        raise HTTPException(
+            500, f"send-command failed: {result.output.decode(errors='replace').strip()}"
+        )
     return {"ok": True}
 
 

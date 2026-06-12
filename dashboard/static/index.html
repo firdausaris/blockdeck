@@ -168,13 +168,17 @@ function copySeed() {
 async function sendSay() {
   const msg = $('saymsg').value.trim();
   if (!msg) return;
-  await fetch('/api/say', {
+  const r = await fetch('/api/say', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: msg }),
   });
-  $('saymsg').value = '';
-  toast('sent');
+  if (r.ok) {
+    $('saymsg').value = '';
+    toast('sent');
+  } else {
+    toast('failed: ' + ((await r.json()).detail || r.status));
+  }
 }
 
 refresh();

@@ -14,6 +14,10 @@ services:
     # shows up in the game's server list. Note this also puts the console
     # SSH (port 2222, password = RCON_PASSWORD) on the LAN.
     network_mode: host
+    # send-command locates the (setuid-demoted) server process via /proc,
+    # which needs ptrace-read — not in Docker's default capability set
+    cap_add:
+      - SYS_PTRACE
     environment:
       EULA: "${EULA:?Set EULA=TRUE in .env to accept the Minecraft EULA}"
       VERSION: "${VERSION:-LATEST}"
