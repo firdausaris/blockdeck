@@ -6,112 +6,218 @@
 <title>blockdeck</title>
 <style>
   :root {
-    --bg: #14171c; --card: #1d2129; --line: #2c313b;
-    --text: #e6e9ee; --dim: #8b93a1; --green: #4caf6d; --red: #d9534f;
-    --accent: #5b9dd9;
+    --bg: #0e1116; --card: #161b22; --line: #262d38;
+    --text: #e8ecf2; --dim: #8b95a5;
+    --accent: #4f9cf9; --green: #3fb96a; --amber: #d29a3a; --red: #e25c55;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 system-ui, sans-serif;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background-image: radial-gradient(1200px 400px at 50% -100px, #1a2230 0%, var(--bg) 70%);
   }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h1 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-            background: var(--dim); margin-right: 8px; }
-  h1 .dot.up { background: var(--green); }
-  h1 .dot.down { background: var(--red); }
-  .sub { color: var(--dim); margin-bottom: 20px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line);
-          border-radius: 10px; padding: 16px; }
-  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
-             color: var(--dim); margin: 0 0 10px; }
-  .big { font-size: 26px; font-weight: 600; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 18px 40px; }
+
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  header svg.logo { width: 30px; height: 30px; color: var(--accent); }
+  h1 { font-size: 24px; margin: 0; letter-spacing: -.02em; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--dim); }
+  .dot.up { background: var(--green); box-shadow: 0 0 0 0 rgba(63,185,106,.5);
+            animation: pulse 2.5s infinite; }
+  .dot.down { background: var(--red); }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(63,185,106,.45); }
+    70% { box-shadow: 0 0 0 9px rgba(63,185,106,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,185,106,0); }
+  }
+  .sub { color: var(--dim); margin: 0 0 22px 42px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 16px; }
+  .card {
+    background: linear-gradient(180deg, #181e27 0%, var(--card) 100%);
+    border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  }
+  .card h2 {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); margin: 0 0 12px; font-weight: 600;
+  }
+  .card h2 svg { width: 15px; height: 15px; }
+  .big { font-size: 28px; font-weight: 650; letter-spacing: -.02em; }
   .muted { color: var(--dim); font-size: 13px; }
-  ul { list-style: none; margin: 0; padding: 0; }
-  li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+
+  ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 8px;
+       padding: 7px 0; border-bottom: 1px solid var(--line); }
   li:last-child { border-bottom: none; }
-  li .muted { float: right; }
-  li a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--dim); }
-  li a:hover { color: var(--accent); }
-  .badge { color: var(--green); font-size: 12px; font-weight: 600;
-           text-transform: uppercase; letter-spacing: .05em; }
-  button.mini { padding: 3px 10px; font-size: 12px; }
-  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-  button {
-    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
-    padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; }
+  li a.dl {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text); text-decoration: none;
   }
-  button.warn { background: #b3823d; }
-  button:disabled { opacity: .5; cursor: wait; }
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-           background: var(--card); border: 1px solid var(--line); color: var(--text);
-           padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity .3s; }
+  li a.dl svg { width: 14px; height: 14px; color: var(--dim); flex: none; }
+  li a.dl:hover, li a.dl:hover svg { color: var(--accent); }
+
+  .seedrow { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .seedrow button.icon {
+    background: none; border: none; padding: 2px; cursor: pointer;
+    color: var(--dim); display: inline-flex;
+  }
+  .seedrow button.icon:hover { color: var(--accent); }
+  .seedrow button.icon svg { width: 14px; height: 14px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--green); font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+    background: rgba(63,185,106,.12); border-radius: 20px; padding: 2px 9px;
+  }
+  .badge svg { width: 12px; height: 12px; }
+
+  button {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--accent); color: #fff; border: 0; border-radius: 9px;
+    padding: 9px 15px; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: filter .12s, transform .12s;
+  }
+  button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+  button:disabled { opacity: .45; cursor: wait; transform: none; }
+  button svg { width: 16px; height: 16px; flex: none; }
+  button.success { background: var(--green); }
+  button.warn { background: var(--amber); }
+  button.ghost, a.ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--text);
+  }
+  a.ghost {
+    display: inline-flex; align-items: center; gap: 7px; border-radius: 9px;
+    padding: 9px 15px; font-size: 14px; font-weight: 600; text-decoration: none;
+    transition: border-color .12s, transform .12s;
+  }
+  a.ghost:hover { border-color: var(--accent); transform: translateY(-1px); }
+  a.ghost svg { width: 16px; height: 16px; color: var(--accent); }
+  button.mini { padding: 4px 11px; font-size: 12.5px; border-radius: 7px; gap: 5px; }
+  button.mini svg { width: 13px; height: 13px; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .formrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  input[type=text], .formrow input, .sayrow input {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 13px; font-size: 14px; outline: none;
+    transition: border-color .12s;
+  }
+  input:focus { border-color: var(--accent); }
+  .formrow input#newname { flex: 1; min-width: 160px; }
+  .formrow input#newseed { width: 160px; }
+  .sayrow { display: flex; gap: 10px; margin-top: 14px; }
+  .sayrow input { flex: 1; }
+
+  #toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--card); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); color: var(--text);
+    padding: 11px 20px; border-radius: 10px; max-width: 90vw;
+    box-shadow: 0 6px 24px rgba(0,0,0,.4);
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
   #toast.show { opacity: 1; }
-  .sayrow { display: flex; gap: 8px; margin-top: 20px; }
-  .sayrow input { flex: 1; background: var(--bg); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1><span class="dot" id="dot"></span>blockdeck</h1>
-  <div class="sub" id="sub">connecting…</div>
+  <header>
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/>
+    </svg>
+    <h1>blockdeck</h1>
+    <span class="dot" id="dot"></span>
+  </header>
+  <p class="sub" id="sub">connecting…</p>
 
   <div class="grid">
     <div class="card">
-      <h2>Players</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Players</h2>
       <div class="big" id="playercount">–</div>
       <ul id="players"></ul>
     </div>
+
     <div class="card">
-      <h2>Version</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><circle cx="7" cy="7" r="1" fill="currentColor"/></svg>
+        Version</h2>
       <div class="big" id="version">–</div>
       <div class="muted" id="uptime"></div>
-      <div class="muted">seed: <span id="seed" title="click to copy"
-        style="cursor:pointer" onclick="copySeed()">–</span></div>
+      <div class="seedrow muted">seed: <span id="seed">–</span>
+        <button class="icon" onclick="copySeed()" title="copy seed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
     </div>
+
     <div class="card">
-      <h2>Backups</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+        Backups</h2>
       <div class="big" id="backupcount">–</div>
       <ul id="backups"></ul>
     </div>
 
     <div class="card" style="grid-column: 1 / -1">
-      <h2>Worlds</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Worlds</h2>
       <ul id="worlds"></ul>
-      <div class="sayrow">
+      <div class="formrow">
         <input id="newname" placeholder="New world name">
-        <input id="newseed" placeholder="Seed (optional)" style="max-width:170px">
-        <button onclick="createWorld()">Create</button>
+        <input id="newseed" placeholder="Seed (optional)">
+        <button onclick="createWorld()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Create</button>
         <input type="file" id="upload" accept=".mcworld,.zip" style="display:none">
-        <button onclick="$('upload').click()">Import .mcworld</button>
+        <button class="ghost" onclick="$('upload').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          Import .mcworld</button>
       </div>
     </div>
   </div>
 
   <div class="actions">
-    <button onclick="act('/api/backup', null)">Backup now</button>
-    <button onclick="act('/api/update', 'Check for updates now? Players get a 5-minute warning if one is found.')">Check for update</button>
-    <button class="warn" onclick="act('/api/restart', 'Restart the server right now? Players will be disconnected without warning.')">Restart server</button>
-    <button onclick="act('/api/render-map', null)">Render map</button>
-    <a id="maplink" href="/map/" target="_blank" style="display:none">
-      <button>Open map <span class="muted" id="maptime"></span></button>
-    </a>
+    <button class="success" onclick="act('/api/backup', null)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+      Backup now</button>
+    <button onclick="act('/api/update', 'Check for updates now? Players get a 5-minute warning if one is found.')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+      Check for update</button>
+    <button class="warn" onclick="act('/api/restart', 'Restart the server right now? Players will be disconnected without warning.')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>
+      Restart server</button>
+    <button onclick="act('/api/render-map', null)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+      Render map</button>
+    <a id="maplink" class="ghost" href="/map/" target="_blank" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+      Open map <span class="muted" id="maptime"></span></a>
   </div>
 
   <div class="sayrow">
     <input id="saymsg" placeholder="Broadcast a message to players…"
            onkeydown="if(event.key==='Enter')sendSay()">
-    <button onclick="sendSay()">Say</button>
+    <button onclick="sendSay()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 22-7z"/></svg>
+      Say</button>
   </div>
 </div>
 <div id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
+
+const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8z"/></svg>';
 
 function toast(msg) {
   $('toast').textContent = msg;
@@ -126,6 +232,9 @@ function fmtAgo(iso) {
   if (s < 129600) return Math.round(s / 3600) + ' h ago';
   return Math.round(s / 86400) + ' days ago';
 }
+
+const esc = s => s.replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 async function refresh() {
   let st;
@@ -145,34 +254,34 @@ async function refresh() {
 
   $('playercount').textContent = st.ping
     ? `${st.ping.players_online} / ${st.ping.players_max}` : '–';
-  $('players').innerHTML = st.players.map(p => `<li>${p}</li>`).join('')
+  $('players').innerHTML = st.players.map(p =>
+    `<li><span class="grow">${esc(p)}</span></li>`).join('')
     || '<li class="muted">nobody online</li>';
 
   $('version').textContent = st.installed_version || '–';
   $('uptime').textContent = st.container.started_at
     ? 'up since ' + fmtAgo(st.container.started_at).replace(' ago', '') : '';
-
   $('seed').textContent = st.seed || '–';
+
   if (st.map && st.map.rendered) {
     $('maplink').style.display = '';
-    $('maptime').textContent = fmtAgo(st.map.rendered_at);
+    $('maptime').textContent = '· ' + fmtAgo(st.map.rendered_at);
   }
-
-  const esc = s => s.replace(/[&<>"]/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  $('worlds').innerHTML = st.worlds.map(w =>
-    `<li>${esc(w.name)} <span class="muted">${w.size}</span> ` +
-    (w.active ? '<span class="badge">active</span>'
-              : `<button class="mini" data-world="${esc(w.name)}">Activate</button>`) +
-    '</li>'
-  ).join('') || '<li class="muted">no worlds yet</li>';
 
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
-    `<li><a href="/api/backups/${encodeURIComponent(b.name)}" download
-       title="download ${b.name}">${fmtAgo(b.time)}</a>
-       <span class="muted">${b.size}</span></li>`
+    `<li><a class="dl grow" href="/api/backups/${encodeURIComponent(b.name)}"
+        download title="download ${esc(b.name)}">${ICON_DL}${fmtAgo(b.time)}</a>
+        <span class="muted">${b.size}</span></li>`
   ).join('') || '<li class="muted">no backups yet</li>';
+
+  $('worlds').innerHTML = st.worlds.map(w =>
+    `<li><span class="grow">${esc(w.name)}</span>
+     <span class="muted">${w.size}</span> ` +
+    (w.active ? `<span class="badge">${ICON_CHECK}active</span>`
+              : `<button class="mini ghost" data-world="${esc(w.name)}">${ICON_PLAY}Activate</button>`) +
+    '</li>'
+  ).join('') || '<li class="muted">no worlds yet</li>';
 }
 
 async function act(url, confirmMsg) {
@@ -190,10 +299,10 @@ async function act(url, confirmMsg) {
 }
 
 $('worlds').addEventListener('click', e => {
-  const name = e.target.dataset && e.target.dataset.world;
-  if (!name) return;
-  actJson('/api/worlds/activate', { name },
-    `Switch the active world to "${name}"? The server restarts and players are disconnected.`);
+  const btn = e.target.closest('[data-world]');
+  if (!btn) return;
+  actJson('/api/worlds/activate', { name: btn.dataset.world },
+    `Switch the active world to "${btn.dataset.world}"? The server restarts and players are disconnected.`);
 });
 
 async function createWorld() {
