@@ -34,6 +34,8 @@
   li { padding: 5px 0; border-bottom: 1px solid var(--line); }
   li:last-child { border-bottom: none; }
   li .muted { float: right; }
+  li a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--dim); }
+  li a:hover { color: var(--accent); }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
   button {
     background: var(--accent); color: #fff; border: 0; border-radius: 8px;
@@ -142,7 +144,9 @@ async function refresh() {
 
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
-    `<li>${fmtAgo(b.time)} <span class="muted">${b.size}</span></li>`
+    `<li><a href="/api/backups/${encodeURIComponent(b.name)}" download
+       title="download ${b.name}">${fmtAgo(b.time)}</a>
+       <span class="muted">${b.size}</span></li>`
   ).join('') || '<li class="muted">no backups yet</li>';
 }
 

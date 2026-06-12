@@ -194,6 +194,15 @@ def status():
     }
 
 
+@app.get("/api/backups/{name}")
+def download_backup(name: str):
+    """Download a backup (.mcworld = zip of the world, importable anywhere)."""
+    path = BACKUPS_DIR / name
+    if Path(name).name != name or not name.endswith(".mcworld") or not path.is_file():
+        raise HTTPException(404, "backup not found")
+    return FileResponse(path, filename=name, media_type="application/zip")
+
+
 @app.post("/api/restart")
 def restart():
     try:
