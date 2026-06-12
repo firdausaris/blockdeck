@@ -112,6 +112,14 @@
   button.mini { padding: 4px 11px; font-size: 12.5px; border-radius: 7px; gap: 5px; }
   button.mini svg { width: 13px; height: 13px; }
 
+  .statline { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .statlabel { width: 34px; font-size: 13px; color: var(--dim); }
+  .statval { font-size: 12.5px; color: var(--dim); min-width: 120px; text-align: right; }
+  .bar { flex: 1; height: 6px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 4px;
+           background: var(--accent); transition: width .6s, background .6s; }
+  .bar i.hot { background: var(--red); }
+
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
   .formrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
   input[type=text], .formrow input, .sayrow input {
@@ -180,11 +188,28 @@
       <ul id="backups"></ul>
     </div>
 
+    <div class="card">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 14h3"/><path d="M1 9h3"/><path d="M1 14h3"/></svg>
+        System</h2>
+      <div class="statline"><span class="statlabel">CPU</span>
+        <span class="bar"><i id="cpubar"></i></span><span class="statval" id="cputext">–</span></div>
+      <div class="statline"><span class="statlabel">RAM</span>
+        <span class="bar"><i id="rambar"></i></span><span class="statval" id="ramtext">–</span></div>
+      <div class="statline"><span class="statlabel">Disk</span>
+        <span class="bar"><i id="diskbar"></i></span><span class="statval" id="disktext">–</span></div>
+      <div class="muted" id="srvstats" style="margin-top:8px"></div>
+    </div>
+
     <div class="card" style="grid-column: 1 / -1">
       <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         Worlds</h2>
       <ul id="worlds"></ul>
-      <div class="formrow">
+      <div style="margin-top:14px">
+        <button class="ghost mini" id="worldtoggle" onclick="toggleWorldForm()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          New / Import world</button>
+      </div>
+      <div class="formrow" id="worldform" style="display:none">
         <input id="newname" placeholder="New world name">
         <input id="newseed" placeholder="Seed (optional)">
         <button onclick="createWorld()">
@@ -293,6 +318,20 @@ async function refresh() {
     $('maptime').textContent = '· ' + fmtAgo(st.map.rendered_at);
   }
 
+  const sys = st.system;
+  if (sys) {
+    setBar('cpubar', sys.cpu_percent);
+    $('cputext').textContent = (sys.cpu_percent ?? '–') + `% · load ${sys.load} / ${sys.cpu_count}`;
+    setBar('rambar', sys.mem_percent);
+    $('ramtext').textContent = `${sys.mem_used} / ${sys.mem_total}`;
+    setBar('diskbar', sys.disk_percent);
+    $('disktext').textContent = `${sys.disk_used} / ${sys.disk_total}`;
+  }
+  $('srvstats').textContent = st.server_stats
+    ? `bedrock process: ${st.server_stats.mem} RAM` +
+      (st.server_stats.cpu_percent != null ? ` · ${st.server_stats.cpu_percent}% CPU` : '')
+    : '';
+
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
     `<li><a class="dl grow" href="/api/backups/${encodeURIComponent(b.name)}"
@@ -307,6 +346,19 @@ async function refresh() {
               : `<button class="mini ghost" data-world="${esc(w.name)}">${ICON_PLAY}Activate</button>`) +
     '</li>'
   ).join('') || '<li class="muted">no worlds yet</li>';
+}
+
+function setBar(id, pct) {
+  const el = $(id);
+  el.style.width = (pct ?? 0) + '%';
+  el.classList.toggle('hot', (pct ?? 0) > 85);
+}
+
+function toggleWorldForm() {
+  const f = $('worldform');
+  const open = f.style.display === 'none';
+  f.style.display = open ? '' : 'none';
+  if (open) $('newname').focus();
 }
 
 async function act(url, confirmMsg) {
@@ -337,6 +389,7 @@ async function createWorld() {
   await actJson('/api/worlds', { name, seed: seed || null },
     `Create new world "${name}"${seed ? ' with seed ' + seed : ''}? The server will restart.`);
   $('newname').value = ''; $('newseed').value = '';
+  $('worldform').style.display = 'none';
 }
 
 $('upload').addEventListener('change', async () => {

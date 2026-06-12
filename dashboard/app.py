@@ -8,6 +8,7 @@ import shutil
 import socket
 import struct
 import tempfile
+import threading
 import time
 import zipfile
 from datetime import datetime, timezone
@@ -151,6 +152,85 @@ def human_size(n: float) -> str:
         if n < 1024 or unit == "GB":
             return f"{n} B" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024
+
+
+# --- System stats ---
+# /proc inside the container reflects the whole host (no cgroup limits are
+# set), so host CPU/RAM/load come straight from there. CPU% is computed
+# from the delta since the previous poll — zero added latency.
+
+_prev_cpu: tuple[int, int] | None = None
+
+
+def _read_cpu() -> tuple[int, int]:
+    fields = [int(x) for x in Path("/proc/stat").read_text().splitlines()[0].split()[1:]]
+    idle = fields[3] + (fields[4] if len(fields) > 4 else 0)
+    return idle, sum(fields)
+
+
+def host_stats():
+    global _prev_cpu
+    cpu_percent = None
+    cur = _read_cpu()
+    if _prev_cpu and cur[1] != _prev_cpu[1]:
+        d_idle, d_total = cur[0] - _prev_cpu[0], cur[1] - _prev_cpu[1]
+        cpu_percent = round(100 * (1 - d_idle / d_total), 1)
+    _prev_cpu = cur
+
+    mem = {}
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        key, _, rest = line.partition(":")
+        mem[key] = int(rest.strip().split()[0]) * 1024
+    mem_total, mem_avail = mem["MemTotal"], mem["MemAvailable"]
+
+    disk = shutil.disk_usage("/server")
+    return {
+        "cpu_percent": cpu_percent,
+        "cpu_count": os.cpu_count(),
+        "load": Path("/proc/loadavg").read_text().split()[0],
+        "mem_used": human_size(mem_total - mem_avail),
+        "mem_total": human_size(mem_total),
+        "mem_percent": round(100 * (mem_total - mem_avail) / mem_total, 1),
+        "disk_used": human_size(disk.used),
+        "disk_total": human_size(disk.total),
+        "disk_percent": round(100 * disk.used / disk.total, 1),
+    }
+
+
+# The server process's own usage via the docker stats API. One sample
+# takes ~1-2s, so it's collected in a background thread and cached
+# rather than blocking every status request.
+
+_server_stats: dict = {}
+
+
+def _server_stats_loop():
+    while True:
+        try:
+            s = client.containers.get(SERVER_CONTAINER).stats(stream=False)
+            mem = s["memory_stats"]["usage"] - s["memory_stats"].get("stats", {}).get(
+                "inactive_file", 0
+            )
+            cpu_d = (
+                s["cpu_stats"]["cpu_usage"]["total_usage"]
+                - s["precpu_stats"]["cpu_usage"]["total_usage"]
+            )
+            sys_d = s["cpu_stats"].get("system_cpu_usage", 0) - s["precpu_stats"].get(
+                "system_cpu_usage", 0
+            )
+            ncpu = s["cpu_stats"].get("online_cpus") or os.cpu_count() or 1
+            _server_stats.update(
+                {
+                    "mem": human_size(mem),
+                    "cpu_percent": round(cpu_d / sys_d * ncpu * 100, 1) if sys_d else None,
+                }
+            )
+        except Exception:
+            _server_stats.clear()
+        time.sleep(10)
+
+
+threading.Thread(target=_server_stats_loop, daemon=True).start()
 
 
 # --- World management ---
@@ -309,6 +389,8 @@ def status():
         "worlds": worlds_list(),
         "backups": backups_summary(),
         "map": map_info(),
+        "system": host_stats(),
+        "server_stats": _server_stats or None,
         "auth": bool(DASH_PASSWORD),
         "checked_at": datetime.now(tz=timezone.utc).isoformat(),
     }
