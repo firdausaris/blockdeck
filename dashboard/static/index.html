@@ -142,7 +142,7 @@ async function refresh() {
 
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
-    `<li>${fmtAgo(b.time)} <span class="muted">${b.size_mb} MB</span></li>`
+    `<li>${fmtAgo(b.time)} <span class="muted">${b.size}</span></li>`
   ).join('') || '<li class="muted">no backups yet</li>';
 }
 

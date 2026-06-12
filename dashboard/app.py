@@ -148,12 +148,18 @@ def backups_summary(limit: int = 5):
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
+    def human_size(n: int) -> str:
+        for unit in ("B", "KB", "MB", "GB"):
+            if n < 1024 or unit == "GB":
+                return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
+            n /= 1024
+
     def entry(p: Path):
         st = p.stat()
         return {
             "name": p.name,
             "time": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
-            "size_mb": round(st.st_size / 1_048_576, 1),
+            "size": human_size(st.st_size),
         }
     return {"count": len(files), "recent": [entry(p) for p in files[:limit]]}
 
