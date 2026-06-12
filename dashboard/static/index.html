@@ -36,6 +36,9 @@
   li .muted { float: right; }
   li a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--dim); }
   li a:hover { color: var(--accent); }
+  .badge { color: var(--green); font-size: 12px; font-weight: 600;
+           text-transform: uppercase; letter-spacing: .05em; }
+  button.mini { padding: 3px 10px; font-size: 12px; }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
   button {
     background: var(--accent); color: #fff; border: 0; border-radius: 8px;
@@ -74,6 +77,18 @@
       <h2>Backups</h2>
       <div class="big" id="backupcount">–</div>
       <ul id="backups"></ul>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1">
+      <h2>Worlds</h2>
+      <ul id="worlds"></ul>
+      <div class="sayrow">
+        <input id="newname" placeholder="New world name">
+        <input id="newseed" placeholder="Seed (optional)" style="max-width:170px">
+        <button onclick="createWorld()">Create</button>
+        <input type="file" id="upload" accept=".mcworld,.zip" style="display:none">
+        <button onclick="$('upload').click()">Import .mcworld</button>
+      </div>
     </div>
   </div>
 
@@ -142,6 +157,15 @@ async function refresh() {
     $('maptime').textContent = fmtAgo(st.map.rendered_at);
   }
 
+  const esc = s => s.replace(/[&<>"]/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  $('worlds').innerHTML = st.worlds.map(w =>
+    `<li>${esc(w.name)} <span class="muted">${w.size}</span> ` +
+    (w.active ? '<span class="badge">active</span>'
+              : `<button class="mini" data-world="${esc(w.name)}">Activate</button>`) +
+    '</li>'
+  ).join('') || '<li class="muted">no worlds yet</li>';
+
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>
     `<li><a href="/api/backups/${encodeURIComponent(b.name)}" download
@@ -161,6 +185,63 @@ async function act(url, confirmMsg) {
     toast('request failed: ' + e);
   } finally {
     document.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+
+$('worlds').addEventListener('click', e => {
+  const name = e.target.dataset && e.target.dataset.world;
+  if (!name) return;
+  actJson('/api/worlds/activate', { name },
+    `Switch the active world to "${name}"? The server restarts and players are disconnected.`);
+});
+
+async function createWorld() {
+  const name = $('newname').value.trim();
+  if (!name) { toast('enter a world name'); return; }
+  const seed = $('newseed').value.trim();
+  await actJson('/api/worlds', { name, seed: seed || null },
+    `Create new world "${name}"${seed ? ' with seed ' + seed : ''}? The server will restart.`);
+  $('newname').value = ''; $('newseed').value = '';
+}
+
+$('upload').addEventListener('change', async () => {
+  const file = $('upload').files[0];
+  if (!file) return;
+  if (!confirm(`Import "${file.name}" as a new world and switch to it?`)) return;
+  toast('uploading and importing… this can take a minute');
+  const fd = new FormData();
+  fd.append('file', file);
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch('/api/worlds/import', { method: 'POST', body: fd });
+    const body = await r.json();
+    toast(body.message || body.detail || (r.ok ? 'imported' : 'failed'));
+  } catch (e) {
+    toast('import failed: ' + e);
+  } finally {
+    document.querySelectorAll('button').forEach(b => b.disabled = false);
+    $('upload').value = '';
+    refresh();
+  }
+});
+
+async function actJson(url, payload, confirmMsg) {
+  if (confirmMsg && !confirm(confirmMsg)) return;
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  toast('working… the server is restarting');
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await r.json();
+    toast(body.message || body.detail || (r.ok ? 'done' : 'failed'));
+  } catch (e) {
+    toast('request failed: ' + e);
+  } finally {
+    document.querySelectorAll('button').forEach(b => b.disabled = false);
+    refresh();
   }
 }
 

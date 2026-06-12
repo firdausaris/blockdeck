@@ -15,8 +15,9 @@ cd "$REPO_DIR"
 
 SRC="${1:?Usage: $0 <world-folder | world.mcworld | world.zip>}"
 
-# Read LEVEL_NAME from .env (compose-style KEY=VALUE)
-LEVEL_NAME="$(grep -E '^LEVEL_NAME=' .env 2>/dev/null | head -n1 | cut -d= -f2- || true)"
+# This script replaces the ACTIVE world's content (used by restore.sh).
+# To add a world alongside existing ones, use world.sh import instead.
+LEVEL_NAME="$(grep -E '^level-name=' data/server.properties 2>/dev/null | head -n1 | cut -d= -f2- || true)"
 LEVEL_NAME="${LEVEL_NAME:-world}"
 DEST="data/worlds/$LEVEL_NAME"
 

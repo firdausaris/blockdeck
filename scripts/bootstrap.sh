@@ -49,11 +49,38 @@ fi
 # they end up root-owned and the server runs as root
 mkdir -p data backups map-data
 
+# --- First-run world setup ---
+# The active world lives in data/server.properties (see scripts/world.sh);
+# ask interactively when this is a fresh install
+WORLD_CMD=()
+if [[ ! -f data/server.properties && -t 0 ]]; then
+    echo
+    echo "==> First run — set up your world:"
+    echo "    1) Create a new world"
+    echo "    2) Import an existing world (.mcworld / .zip / folder)"
+    read -rp "Choose [1]: " choice
+    if [[ "${choice:-1}" == 2 ]]; then
+        read -rp "Path to the world file or folder: " wpath
+        read -rp "World name (blank = auto-detect): " wname
+        WORLD_CMD=(import "$wpath")
+        [[ -n "$wname" ]] && WORLD_CMD+=("$wname")
+    else
+        read -rp "World name [world]: " wname
+        read -rp "Seed (blank = random): " wseed
+        WORLD_CMD=(create "${wname:-world}")
+        [[ -n "$wseed" ]] && WORLD_CMD+=("$wseed")
+    fi
+fi
+
 # --- Start ---
 # Use sudo if the docker group membership isn't active in this shell yet
 DOCKER="docker"
 if ! docker info >/dev/null 2>&1; then
     DOCKER="sudo docker"
+fi
+
+if [[ ${#WORLD_CMD[@]} -gt 0 ]]; then
+    ./scripts/world.sh "${WORLD_CMD[@]}"
 fi
 
 echo "==> Starting the Bedrock server ..."

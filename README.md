@@ -15,29 +15,44 @@ cp .env.example .env        # review settings (server name, gamemode, allowlist.
 ./scripts/bootstrap.sh      # installs Docker if needed, starts the server
 ```
 
+On first run, bootstrap asks whether to **create a new world** (name +
+optional seed) or **import an existing one** (`.mcworld`, `.zip`, or a
+world folder).
+
 The server listens on UDP **19132**. All gameplay settings live in `.env` —
 edit and run `docker compose up -d` to apply.
 
 > Setting `EULA=TRUE` in `.env` means you accept the
 > [Minecraft EULA](https://minecraft.net/terms).
 
-## Importing an existing world
+## Worlds
 
-From a world folder, `.mcworld`, or `.zip`:
-
-```bash
-./scripts/import-world.sh /path/to/my-world
-```
-
-To migrate from another host first copy the world over, e.g.:
+The server hosts one world at a time, but any number can live side by
+side in `data/worlds/` — switch between them freely. The active world is
+the `level-name` in `data/server.properties`, managed for you:
 
 ```bash
-scp -r user@192.168.2.204:/home/mcserver/minecraft_bedrock/worlds/"Bedrock level" /tmp/old-world
-./scripts/import-world.sh /tmp/old-world
+./scripts/world.sh list                        # all worlds, active marked *
+./scripts/world.sh create "Skyblock" 12345     # new world (+ optional seed)
+./scripts/world.sh switch "Skyblock"           # activate another world
+./scripts/world.sh import backup.mcworld       # add a world + activate it
 ```
 
-The script stops the server, installs the world as `data/worlds/$LEVEL_NAME`
-(keeping any existing world as a `.bak` folder), and starts it again.
+The same operations are on the dashboard's **Worlds** card, including
+uploading a `.mcworld` from your browser. Every switch restarts the
+server (players get disconnected) and re-points the backup service at
+the new active world.
+
+To migrate a world from another host, copy it over first:
+
+```bash
+scp -r user@oldhost:"/path/to/worlds/My World" /tmp/myworld
+./scripts/world.sh import /tmp/myworld
+```
+
+Note the difference between **import** (adds a world alongside the
+others) and **restore** (`scripts/restore.sh`, replaces the *active*
+world's content from a backup, keeping the old content as a `.bak`).
 
 ## Updating the server
 
@@ -119,7 +134,8 @@ docker compose run --rm -v ./restored:/restored offsite \
 
 `http://<server-ip>:8080` (port: `DASH_PORT` in `.env`) shows live status —
 online players by name, server version and uptime, the world seed (parsed
-from `level.dat`, click to copy), recent backups, and the world map — with
+from `level.dat`, click to copy), recent backups (click to download), the
+world map, and all worlds with switch/create/import controls — plus
 buttons to back up now, check for updates, restart the server, re-render
 the map, and broadcast a message to players.
 
@@ -163,7 +179,7 @@ dashboard/           web dashboard (FastAPI + static page)
 map/                 world map renderer (uNmINeD CLI)
 map-data/            rendered map tiles (not committed)
 offsite/             restic off-site service (Dockerfile, scripts, ssh key)
-scripts/             bootstrap, world import, restore, console helpers
+scripts/             bootstrap, world management, restore, console helpers
 ```
 
 ## Roadmap
@@ -173,3 +189,4 @@ scripts/             bootstrap, world import, restore, console helpers
 - [x] Phase 3 — automatic update checks with graceful restart
 - [x] Phase 4 — web dashboard (status, players, controls)
 - [x] Phase 5 — rendered world map (uNmINeD)
+- [x] Multi-world: create (name/seed), import .mcworld, switch active world

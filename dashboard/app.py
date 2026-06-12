@@ -2,14 +2,17 @@
 
 import os
 import re
+import shutil
 import socket
 import struct
+import tempfile
 import time
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import docker
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -19,10 +22,14 @@ SERVER_PORT = int(os.environ.get("SERVER_PORT", "19132"))
 SERVER_CONTAINER = os.environ.get("SERVER_CONTAINER", "bedrock")
 UPDATER_CONTAINER = os.environ.get("UPDATER_CONTAINER", "bedrock-updater")
 MAP_CONTAINER = os.environ.get("MAP_CONTAINER", "bedrock-map")
-LEVEL_NAME = os.environ.get("LEVEL_NAME", "world")
+BACKUP_CONTAINER = os.environ.get("BACKUP_CONTAINER", "bedrock-backup")
 BACKUPS_DIR = Path("/backups")
 SERVER_DIR = Path("/server")
 MAP_DIR = Path("/map-data/current")
+PROPS_FILE = SERVER_DIR / "server.properties"
+WORLDS_DIR = SERVER_DIR / "worlds"
+BACKUP_CFG = Path("/backup-config/config.yml")
+WORLD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _'-]{0,39}$")
 
 app = FastAPI(title="blockdeck")
 client = docker.from_env()
@@ -105,6 +112,91 @@ def installed_version() -> str | None:
     return ".".join(str(x) for x in max(versions))
 
 
+def human_size(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n} B" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+# --- World management ---
+# The active world is the level-name in data/server.properties — the file
+# the server actually reads. The itzg image only overrides it when the
+# LEVEL_NAME env var is set, which the compose file deliberately doesn't.
+
+
+def active_world() -> str | None:
+    try:
+        for line in PROPS_FILE.read_text().splitlines():
+            if line.startswith("level-name="):
+                return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return None
+
+
+def set_properties(**props: str) -> None:
+    """Update or append key=value pairs in server.properties."""
+    lines = PROPS_FILE.read_text().splitlines() if PROPS_FILE.exists() else []
+    pending = {k.replace("_", "-"): v for k, v in props.items()}
+    out = []
+    for line in lines:
+        key = line.split("=", 1)[0]
+        if key in pending:
+            out.append(f"{key}={pending.pop(key)}")
+        else:
+            out.append(line)
+    out.extend(f"{k}={v}" for k, v in pending.items())
+    PROPS_FILE.write_text("\n".join(out) + "\n")
+    _match_server_owner(PROPS_FILE)
+
+
+def _match_server_owner(path: Path) -> None:
+    """Files we create must be owned like the server data (we run as root)."""
+    st = SERVER_DIR.stat()
+    os.chown(path, st.st_uid, st.st_gid)
+    if path.is_dir():
+        for p in path.rglob("*"):
+            os.chown(p, st.st_uid, st.st_gid)
+
+
+def worlds_list():
+    act = active_world()
+    worlds = []
+    if WORLDS_DIR.is_dir():
+        for d in sorted(WORLDS_DIR.iterdir()):
+            if not d.is_dir() or ".bak." in d.name:
+                continue
+            size = sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+            worlds.append(
+                {"name": d.name, "size": human_size(size), "active": d.name == act}
+            )
+    return worlds
+
+
+def switch_world(name: str, seed: str | None = None) -> None:
+    """Stop the server, point it (and the backup service) at a world, start."""
+    try:
+        server = client.containers.get(SERVER_CONTAINER)
+    except docker.errors.NotFound:
+        raise HTTPException(404, "server container not found")
+    server.stop(timeout=60)
+    props = {"level_name": name}
+    if seed is not None:
+        props["level_seed"] = seed
+    set_properties(**props)
+    if BACKUP_CFG.exists():
+        text = re.sub(
+            r"- /server/worlds/.*", f"- /server/worlds/{name}", BACKUP_CFG.read_text()
+        )
+        BACKUP_CFG.write_text(text)
+    server.start()
+    try:
+        client.containers.get(BACKUP_CONTAINER).restart()
+    except docker.errors.NotFound:
+        pass
+
+
 def world_seed() -> str | None:
     """Reads RandomSeed from the world's level.dat (Bedrock NBT).
 
@@ -113,12 +205,9 @@ def world_seed() -> str | None:
     read the 8 bytes after it. Returned as a string: seeds are int64 and
     would lose precision as a JavaScript number.
     """
-    level_dat = SERVER_DIR / "worlds" / LEVEL_NAME / "level.dat"
+    level_dat = WORLDS_DIR / (active_world() or "") / "level.dat"
     if not level_dat.exists():
-        candidates = sorted(SERVER_DIR.glob("worlds/*/level.dat"))
-        if not candidates:
-            return None
-        level_dat = candidates[0]
+        return None
     try:
         data = level_dat.read_bytes()
     except OSError:
@@ -151,12 +240,6 @@ def backups_summary(limit: int = 5):
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
-    def human_size(n: int) -> str:
-        for unit in ("B", "KB", "MB", "GB"):
-            if n < 1024 or unit == "GB":
-                return f"{n:.1f} {unit}" if unit != "B" else f"{n} {unit}"
-            n /= 1024
-
     def entry(p: Path):
         st = p.stat()
         return {
@@ -188,6 +271,8 @@ def status():
         "players": players,
         "installed_version": installed_version(),
         "seed": world_seed(),
+        "active_world": active_world(),
+        "worlds": worlds_list(),
         "backups": backups_summary(),
         "map": map_info(),
         "checked_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -225,6 +310,76 @@ def update():
         "ok": True,
         "message": "Update check started - follow it with: docker compose logs -f updater",
     }
+
+
+class NewWorld(BaseModel):
+    name: str
+    seed: str | None = None
+
+
+@app.post("/api/worlds")
+def create_world(body: NewWorld):
+    name = body.name.strip()
+    if not WORLD_NAME_RE.match(name):
+        raise HTTPException(400, "invalid name: letters, digits, spaces, _ ' - only")
+    if (WORLDS_DIR / name).exists():
+        raise HTTPException(409, f"world '{name}' already exists")
+    # empty seed = random; the server generates the world on startup
+    switch_world(name, seed=(body.seed or "").strip())
+    return {"ok": True, "message": f"Creating and starting world '{name}'."}
+
+
+class ActivateWorld(BaseModel):
+    name: str
+
+
+@app.post("/api/worlds/activate")
+def activate_world(body: ActivateWorld):
+    name = body.name.strip()
+    if not (WORLDS_DIR / name).is_dir():
+        raise HTTPException(404, f"no such world: {name}")
+    if name == active_world():
+        return {"ok": True, "message": f"'{name}' is already active."}
+    switch_world(name)
+    return {"ok": True, "message": f"Switched to world '{name}'."}
+
+
+@app.post("/api/worlds/import")
+def import_world(file: UploadFile, name: str | None = Form(None)):
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / "upload.mcworld"
+        with archive.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+        extracted = Path(tmp) / "world"
+        try:
+            with zipfile.ZipFile(archive) as z:
+                z.extractall(extracted)
+        except zipfile.BadZipFile:
+            raise HTTPException(400, "not a valid .mcworld/.zip file")
+
+        root = extracted
+        if not (root / "level.dat").exists():
+            hits = list(root.glob("*/level.dat")) + list(root.glob("*/*/level.dat"))
+            if not hits:
+                raise HTTPException(400, "no level.dat found — not a Bedrock world?")
+            root = hits[0].parent
+
+        world_name = (name or "").strip()
+        if not world_name and (root / "levelname.txt").exists():
+            world_name = (root / "levelname.txt").read_text().strip()
+        if not world_name and file.filename:
+            world_name = Path(file.filename).stem
+        if not WORLD_NAME_RE.match(world_name):
+            raise HTTPException(400, f"invalid world name '{world_name}' — provide one")
+        if (WORLDS_DIR / world_name).exists():
+            raise HTTPException(409, f"world '{world_name}' already exists")
+
+        dest = WORLDS_DIR / world_name
+        shutil.copytree(root, dest)
+        _match_server_owner(dest)
+
+    switch_world(world_name)
+    return {"ok": True, "message": f"Imported and switched to '{world_name}'."}
 
 
 BACKUP_HOST = os.environ.get("BACKUP_HOST", "bedrock-backup")

@@ -10,7 +10,8 @@ containers:
       ssh: host.docker.internal:2222
       passwordFile: /config/console-password.yml
       worlds:
-        # Keep the world name in sync with LEVEL_NAME in .env
+        # Auto-managed: world.sh and the dashboard update this line when
+        # the active world changes
         - /server/worlds/world
 
 schedule:

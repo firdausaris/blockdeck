@@ -22,7 +22,9 @@ services:
       EULA: "${EULA:?Set EULA=TRUE in .env to accept the Minecraft EULA}"
       VERSION: "${VERSION:-LATEST}"
       SERVER_NAME: "${SERVER_NAME:-Bedrock Server}"
-      LEVEL_NAME: "${LEVEL_NAME:-world}"
+      # The active world (level-name) is intentionally NOT set here: it
+      # lives in data/server.properties, managed by scripts/world.sh and
+      # the dashboard. Setting LEVEL_NAME here would override it.
       GAMEMODE: "${GAMEMODE:-survival}"
       DIFFICULTY: "${DIFFICULTY:-normal}"
       MAX_PLAYERS: "${MAX_PLAYERS:-10}"
@@ -90,13 +92,14 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       TZ: "${TZ:-UTC}"
-      LEVEL_NAME: "${LEVEL_NAME:-world}"
       SERVER_HOST: "host.docker.internal"
       SERVER_PORT: "${SERVER_PORT:-19132}"
+    # data and backup-config are writable: the dashboard manages worlds
+    # (create/switch/import) via server.properties and the backup config
     volumes:
-      - ./data:/server:ro
+      - ./data:/server
       - ./backups:/backups:ro
-      - ./backup:/backup-config:ro
+      - ./backup:/backup-config
       - ./map-data:/map-data:ro
       - /var/run/docker.sock:/var/run/docker.sock
 
