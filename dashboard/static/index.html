@@ -55,6 +55,7 @@
   li:last-child { border-bottom: none; }
   li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
              white-space: nowrap; }
+  #activity li svg { width: 15px; height: 15px; flex: none; }
   li a.dl {
     display: inline-flex; align-items: center; gap: 6px;
     color: var(--text); text-decoration: none;
@@ -158,6 +159,14 @@
   </header>
   <p class="sub" id="sub">connecting…</p>
 
+  <div class="sayrow" style="margin: 0 0 18px">
+    <input id="saymsg" placeholder="Broadcast a message to players…"
+           onkeydown="if(event.key==='Enter')sendSay()">
+    <button onclick="sendSay()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 22-7z"/></svg>
+      Say</button>
+  </div>
+
   <div class="grid">
     <div class="card">
       <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -201,6 +210,12 @@
     </div>
 
     <div class="card" style="grid-column: 1 / -1">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Activity</h2>
+      <ul id="activity"></ul>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1">
       <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         Worlds</h2>
       <ul id="worlds"></ul>
@@ -241,14 +256,6 @@
       Open map <span class="muted" id="maptime"></span></a>
   </div>
 
-  <div class="sayrow">
-    <input id="saymsg" placeholder="Broadcast a message to players…"
-           onkeydown="if(event.key==='Enter')sendSay()">
-    <button onclick="sendSay()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 22-7z"/></svg>
-      Say</button>
-  </div>
-
   <footer>
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.15c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.66.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
     <a href="https://github.com/firdausaris/blockdeck" target="_blank" rel="noopener">blockdeck</a>
@@ -264,6 +271,12 @@ const $ = id => document.getElementById(id);
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8z"/></svg>';
+const EVENT_ICONS = {
+  join: '<svg viewBox="0 0 24 24" fill="none" stroke="#3fb96a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>',
+  leave: '<svg viewBox="0 0 24 24" fill="none" stroke="#8b95a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+  death: '<svg viewBox="0 0 24 24" fill="none" stroke="#e25c55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1" fill="#e25c55"/><circle cx="15" cy="12" r="1" fill="#e25c55"/><path d="M8 20v2h8v-2"/><path d="M12.5 17l-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>',
+  server: '<svg viewBox="0 0 24 24" fill="none" stroke="#4f9cf9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>',
+};
 
 function toast(msg) {
   $('toast').textContent = msg;
@@ -331,6 +344,11 @@ async function refresh() {
     ? `bedrock process: ${st.server_stats.mem} RAM` +
       (st.server_stats.cpu_percent != null ? ` · ${st.server_stats.cpu_percent}% CPU` : '')
     : '';
+
+  $('activity').innerHTML = (st.events || []).map(ev =>
+    `<li>${EVENT_ICONS[ev.type] || ''}<span class="grow">${esc(ev.text)}</span>
+     <span class="muted">${ev.time ? fmtAgo(ev.time) : ''}</span></li>`
+  ).join('') || '<li class="muted">nothing yet — joins, leaves and restarts show up here</li>';
 
   $('backupcount').textContent = st.backups.count;
   $('backups').innerHTML = st.backups.recent.map(b =>

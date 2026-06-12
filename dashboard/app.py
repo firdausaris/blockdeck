@@ -112,26 +112,48 @@ def ping_server(host: str, port: int, timeout: float = 2.0):
     }
 
 
-# --- Player names from the server log ---
+# --- Player names and activity events from the server log ---
 
 CONNECT_RE = re.compile(r"Player connected: ([^,\r\n]+)")
 DISCONNECT_RE = re.compile(r"Player disconnected: ([^,\r\n]+)")
+STARTED_RE = re.compile(r"Server started\.")
 
 
-def online_players(container) -> list[str]:
-    """Replays join/leave events from the current container run's log."""
-    log = container.logs(tail=10000).decode("utf-8", "replace")
+def parse_log(container, limit: int = 15):
+    """One pass over the current run's log: who's online + recent events.
+
+    Uses docker's own per-line timestamps (always UTC RFC3339) rather than
+    the server's log prefix, which follows the container's timezone.
+    """
+    log = container.logs(tail=10000, timestamps=True).decode("utf-8", "replace")
     players: list[str] = []
+    events: list[dict] = []
+
+    def stamp(line: str) -> str | None:
+        try:
+            return (
+                datetime.strptime(line[:19], "%Y-%m-%dT%H:%M:%S")
+                .replace(tzinfo=timezone.utc)
+                .isoformat()
+            )
+        except ValueError:
+            return None
+
     for line in log.splitlines():
         if m := CONNECT_RE.search(line):
             name = m.group(1).strip()
             if name not in players:
                 players.append(name)
+            events.append({"time": stamp(line), "type": "join", "text": f"{name} joined"})
         elif m := DISCONNECT_RE.search(line):
             name = m.group(1).strip()
             if name in players:
                 players.remove(name)
-    return players
+            events.append({"time": stamp(line), "type": "leave", "text": f"{name} left"})
+        elif STARTED_RE.search(line):
+            events.append({"time": stamp(line), "type": "server", "text": "server started"})
+
+    return players, list(reversed(events[-limit:]))
 
 
 # --- Local facts: installed version, backups ---
@@ -377,12 +399,13 @@ def status():
         container, state, started_at = None, "not created", None
 
     ping = ping_server(SERVER_HOST, SERVER_PORT) if state == "running" else None
-    players = online_players(container) if state == "running" else []
+    players, events = parse_log(container) if state == "running" else ([], [])
 
     return {
         "container": {"state": state, "started_at": started_at},
         "ping": ping,
         "players": players,
+        "events": events,
         "installed_version": installed_version(),
         "seed": world_seed(),
         "active_world": active_world(),
