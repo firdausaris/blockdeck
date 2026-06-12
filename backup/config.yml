@@ -13,6 +13,8 @@ containers:
         - /server/worlds/world
 
 schedule:
+  # Give the server console time to come up before the initial backup
+  startupDelay: 2m
   # Daily backup at this time (TZ from .env), plus one whenever the last
   # player logs out (at most every 30 minutes)
   daily: "02:00"

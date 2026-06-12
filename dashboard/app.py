@@ -165,6 +165,27 @@ def update():
     }
 
 
+BACKUP_HOST = os.environ.get("BACKUP_HOST", "bedrock-backup")
+BACKUP_TOKEN_FILE = Path("/backup-config/.bedrockifierToken")
+
+
+@app.post("/api/backup")
+def backup_now():
+    """Trigger an on-demand hot backup via Bedrockifier's HTTP API."""
+    import urllib.error
+    import urllib.request
+
+    if not BACKUP_TOKEN_FILE.exists():
+        raise HTTPException(503, "backup service token not found (is it running?)")
+    req = urllib.request.Request(f"http://{BACKUP_HOST}:8080/start-backup")
+    req.add_header("Authorization", f"Bearer {BACKUP_TOKEN_FILE.read_text().strip()}")
+    try:
+        urllib.request.urlopen(req, timeout=120)
+    except (urllib.error.URLError, OSError) as e:
+        raise HTTPException(502, f"backup service unreachable: {e}")
+    return {"ok": True, "message": "Backup completed."}
+
+
 class Message(BaseModel):
     message: str
 

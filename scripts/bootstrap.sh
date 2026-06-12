@@ -45,7 +45,9 @@ else
     echo "    (the backup service can't reach the server console without it)"
 fi
 
-mkdir -p backups
+# Create the bind-mount dirs as the current user — if docker creates them
+# they end up root-owned and the server runs as root
+mkdir -p data backups
 
 # --- Start ---
 # Use sudo if the docker group membership isn't active in this shell yet

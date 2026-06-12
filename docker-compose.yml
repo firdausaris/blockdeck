@@ -80,6 +80,7 @@ services:
     volumes:
       - ./data:/server:ro
       - ./backups:/backups:ro
+      - ./backup:/backup-config:ro
       - /var/run/docker.sock:/var/run/docker.sock
 
   # Off-site replication of ./backups via restic. Opt-in:

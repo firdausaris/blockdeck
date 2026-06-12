@@ -10,4 +10,5 @@ data/
 # Backup output and secrets
 backups/
 backup/console-password.yml
+backup/.*
 offsite/ssh/

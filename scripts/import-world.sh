@@ -20,9 +20,22 @@ LEVEL_NAME="$(grep -E '^LEVEL_NAME=' .env 2>/dev/null | head -n1 | cut -d= -f2- 
 LEVEL_NAME="${LEVEL_NAME:-world}"
 DEST="data/worlds/$LEVEL_NAME"
 
+DOCKER="docker"
+docker info >/dev/null 2>&1 || DOCKER="sudo docker"
+WAS_RUNNING=0
+
 # --- Stage the source into a temp dir ---
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+
+cleanup() {
+    local status=$?
+    rm -rf "$TMP"
+    if [[ $status -ne 0 && $WAS_RUNNING -eq 1 ]]; then
+        echo "==> Import failed; starting the server again ..."
+        $DOCKER compose up -d bedrock || true
+    fi
+}
+trap cleanup EXIT
 
 case "$SRC" in
     *.mcworld|*.zip)
@@ -45,11 +58,16 @@ if [[ ! -f "$STAGED/level.dat" ]]; then
     exit 1
 fi
 
-# --- Stop the server while we swap world data ---
-DOCKER="docker"
-docker info >/dev/null 2>&1 || DOCKER="sudo docker"
+# --- Check we can actually write the destination, before any disruption ---
+mkdir -p "$(dirname "$DEST")" 2>/dev/null || true
+if [[ ! -w "$(dirname "$DEST")" ]]; then
+    echo "Error: $(dirname "$DEST") is not writable by $(id -un)."
+    echo "This happens when docker created data/ as root. Fix with:"
+    echo "  sudo chown -R $(id -un): data"
+    exit 1
+fi
 
-WAS_RUNNING=0
+# --- Stop the server while we swap world data ---
 if $DOCKER compose ps --status running bedrock 2>/dev/null | grep -q bedrock; then
     WAS_RUNNING=1
     echo "==> Stopping server ..."
