@@ -65,6 +65,23 @@ services:
       - ./data:/server:ro
       - /var/run/docker.sock:/var/run/docker.sock
 
+  # Web dashboard: status, players, backups, update/restart controls.
+  # LAN-only by design — don't port-forward this without adding auth.
+  dashboard:
+    build: ./dashboard
+    container_name: bedrock-dashboard
+    restart: unless-stopped
+    depends_on:
+      - bedrock
+    ports:
+      - "${DASH_PORT:-8080}:8080"
+    environment:
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - ./data:/server:ro
+      - ./backups:/backups:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
   # Off-site replication of ./backups via restic. Opt-in:
   # set COMPOSE_PROFILES=offsite in .env and configure RESTIC_* there.
   offsite:

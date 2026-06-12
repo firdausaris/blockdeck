@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>blockdeck</title>
+<style>
+  :root {
+    --bg: #14171c; --card: #1d2129; --line: #2c313b;
+    --text: #e6e9ee; --dim: #8b93a1; --green: #4caf6d; --red: #d9534f;
+    --accent: #5b9dd9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h1 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+            background: var(--dim); margin-right: 8px; }
+  h1 .dot.up { background: var(--green); }
+  h1 .dot.down { background: var(--red); }
+  .sub { color: var(--dim); margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+             color: var(--dim); margin: 0 0 10px; }
+  .big { font-size: 26px; font-weight: 600; }
+  .muted { color: var(--dim); font-size: 13px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+  li:last-child { border-bottom: none; }
+  li .muted { float: right; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.warn { background: #b3823d; }
+  button:disabled { opacity: .5; cursor: wait; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+           background: var(--card); border: 1px solid var(--line); color: var(--text);
+           padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity .3s; }
+  #toast.show { opacity: 1; }
+  .sayrow { display: flex; gap: 8px; margin-top: 20px; }
+  .sayrow input { flex: 1; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="dot" id="dot"></span>blockdeck</h1>
+  <div class="sub" id="sub">connecting…</div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Players</h2>
+      <div class="big" id="playercount">–</div>
+      <ul id="players"></ul>
+    </div>
+    <div class="card">
+      <h2>Version</h2>
+      <div class="big" id="version">–</div>
+      <div class="muted" id="uptime"></div>
+    </div>
+    <div class="card">
+      <h2>Backups</h2>
+      <div class="big" id="backupcount">–</div>
+      <ul id="backups"></ul>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button onclick="act('/api/update', 'Check for updates now? Players get a 5-minute warning if one is found.')">Check for update</button>
+    <button class="warn" onclick="act('/api/restart', 'Restart the server right now? Players will be disconnected without warning.')">Restart server</button>
+  </div>
+
+  <div class="sayrow">
+    <input id="saymsg" placeholder="Broadcast a message to players…"
+           onkeydown="if(event.key==='Enter')sendSay()">
+    <button onclick="sendSay()">Say</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  $('toast').textContent = msg;
+  $('toast').classList.add('show');
+  setTimeout(() => $('toast').classList.remove('show'), 4000);
+}
+
+function fmtAgo(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 90) return 'just now';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  if (s < 129600) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' days ago';
+}
+
+async function refresh() {
+  let st;
+  try {
+    st = await (await fetch('/api/status')).json();
+  } catch {
+    $('dot').className = 'dot down';
+    $('sub').textContent = 'dashboard unreachable';
+    return;
+  }
+  const up = st.container.state === 'running' && st.ping;
+  $('dot').className = 'dot ' + (up ? 'up' : 'down');
+  $('sub').textContent = up
+    ? `${st.ping.motd} — online`
+    : `server ${st.container.state}`;
+
+  $('playercount').textContent = st.ping
+    ? `${st.ping.players_online} / ${st.ping.players_max}` : '–';
+  $('players').innerHTML = st.players.map(p => `<li>${p}</li>`).join('')
+    || '<li class="muted">nobody online</li>';
+
+  $('version').textContent = st.installed_version || '–';
+  $('uptime').textContent = st.container.started_at
+    ? 'up since ' + fmtAgo(st.container.started_at).replace(' ago', '') : '';
+
+  $('backupcount').textContent = st.backups.count;
+  $('backups').innerHTML = st.backups.recent.map(b =>
+    `<li>${fmtAgo(b.time)} <span class="muted">${b.size_mb} MB</span></li>`
+  ).join('') || '<li class="muted">no backups yet</li>';
+}
+
+async function act(url, confirmMsg) {
+  if (confirmMsg && !confirm(confirmMsg)) return;
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch(url, { method: 'POST' });
+    const body = await r.json();
+    toast(body.message || body.detail || (r.ok ? 'done' : 'failed'));
+  } catch (e) {
+    toast('request failed: ' + e);
+  } finally {
+    document.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+
+async function sendSay() {
+  const msg = $('saymsg').value.trim();
+  if (!msg) return;
+  await fetch('/api/say', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg }),
+  });
+  $('saymsg').value = '';
+  toast('sent');
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

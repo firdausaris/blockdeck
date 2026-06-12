@@ -115,6 +115,17 @@ docker compose run --rm -v ./restored:/restored offsite \
 ./scripts/restore.sh restored/backups/<file>.mcworld
 ```
 
+## Dashboard
+
+`http://<server-ip>:8080` (port: `DASH_PORT` in `.env`) shows live status —
+online players by name, server version and uptime, recent backups — with
+buttons to check for updates, restart the server, and broadcast a message
+to players.
+
+It reads player names from the server log and the player count from the
+Bedrock ping protocol, so it works without any server-side mods. **It has
+no authentication**: it is meant for your LAN. Don't port-forward it.
+
 ## Console commands
 
 ```bash
@@ -132,6 +143,7 @@ data/                server binary, configs, worlds (not committed)
 backups/             .mcworld backups (not committed)
 backup/              backup service config (config.yml)
 updater/             automatic update service (Dockerfile, scripts)
+dashboard/           web dashboard (FastAPI + static page)
 offsite/             restic off-site service (Dockerfile, scripts, ssh key)
 scripts/             bootstrap, world import, restore, console helpers
 ```
@@ -141,5 +153,5 @@ scripts/             bootstrap, world import, restore, console helpers
 - [x] Phase 1 — Dockerized server, bootstrap, world import
 - [x] Phase 2 — scheduled hot backups + off-site push (restic) + restore script
 - [x] Phase 3 — automatic update checks with graceful restart
-- [ ] Phase 4 — web dashboard (status, players, controls)
+- [x] Phase 4 — web dashboard (status, players, controls)
 - [ ] Phase 5 — rendered world map (uNmINeD)
