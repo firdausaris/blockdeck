@@ -45,6 +45,19 @@ else
     echo "    (the backup service can't reach the server console without it)"
 fi
 
+# Generate a dashboard password if none is set yet
+if ! grep -qE '^DASH_PASSWORD=.+' .env; then
+    DASH_PW="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16)"
+    if grep -qE '^DASH_PASSWORD=' .env; then
+        sed -i "s|^DASH_PASSWORD=.*|DASH_PASSWORD=${DASH_PW}|" .env
+    else
+        printf 'DASH_USERNAME=admin\nDASH_PASSWORD=%s\n' "$DASH_PW" >> .env
+    fi
+    DASH_USER="$(grep -E '^DASH_USERNAME=' .env | head -n1 | cut -d= -f2-)"
+    echo "==> Dashboard login generated: ${DASH_USER:-admin} / ${DASH_PW}"
+    echo "    (stored in .env as DASH_PASSWORD)"
+fi
+
 # Create the bind-mount dirs as the current user — if docker creates them
 # they end up root-owned and the server runs as root
 mkdir -p data backups map-data

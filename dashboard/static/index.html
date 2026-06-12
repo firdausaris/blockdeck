@@ -138,9 +138,10 @@ async function refresh() {
   }
   const up = st.container.state === 'running' && st.ping;
   $('dot').className = 'dot ' + (up ? 'up' : 'down');
-  $('sub').textContent = up
+  $('sub').textContent = (up
     ? `${st.ping.motd} — online`
-    : `server ${st.container.state}`;
+    : `server ${st.container.state}`)
+    + (st.auth ? '' : '  ⚠ no dashboard password set (DASH_PASSWORD in .env)');
 
   $('playercount').textContent = st.ping
     ? `${st.ping.players_online} / ${st.ping.players_max}` : '–';

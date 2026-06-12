@@ -140,8 +140,17 @@ buttons to back up now, check for updates, restart the server, re-render
 the map, and broadcast a message to players.
 
 It reads player names from the server log and the player count from the
-Bedrock ping protocol, so it works without any server-side mods. **It has
-no authentication**: it is meant for your LAN. Don't port-forward it.
+Bedrock ping protocol, so it works without any server-side mods.
+
+**Authentication:** the dashboard is protected by HTTP Basic auth —
+your browser asks for the username/password from `DASH_USERNAME` /
+`DASH_PASSWORD` in `.env`. Leave the password empty and `bootstrap.sh`
+generates a random one (printed once and stored in `.env`); the
+dashboard shows a warning if it's running without one.
+
+Even with auth, treat it as LAN-only and don't port-forward it: basic
+auth over plain HTTP can be read by anyone on the network path. For
+access from outside your home, use a VPN (WireGuard/Tailscale) instead.
 
 ## World map
 

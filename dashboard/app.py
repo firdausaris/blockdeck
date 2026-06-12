@@ -1,7 +1,9 @@
 """blockdeck dashboard — status and controls for the Bedrock server stack."""
 
+import base64
 import os
 import re
+import secrets
 import shutil
 import socket
 import struct
@@ -12,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import docker
-from fastapi import FastAPI, Form, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -33,6 +35,38 @@ WORLD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _'-]{0,39}$")
 
 app = FastAPI(title="blockdeck")
 client = docker.from_env()
+
+# --- Authentication ---
+# HTTP Basic over the whole app (API, static page, map, downloads).
+# Middleware rather than a route dependency so the /map static mount is
+# covered too. No password set = open dashboard, warned about in the UI.
+
+DASH_USERNAME = os.environ.get("DASH_USERNAME", "admin")
+DASH_PASSWORD = os.environ.get("DASH_PASSWORD", "")
+
+if not DASH_PASSWORD:
+    print("WARNING: DASH_PASSWORD is not set - the dashboard is open to the whole LAN")
+
+
+@app.middleware("http")
+async def basic_auth(request: Request, call_next):
+    if DASH_PASSWORD:
+        header = request.headers.get("authorization", "")
+        ok = False
+        if header.lower().startswith("basic "):
+            try:
+                user, _, password = base64.b64decode(header[6:]).decode().partition(":")
+                ok = secrets.compare_digest(user, DASH_USERNAME) and secrets.compare_digest(
+                    password, DASH_PASSWORD
+                )
+            except Exception:
+                ok = False
+        if not ok:
+            return Response(
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="blockdeck"'},
+            )
+    return await call_next(request)
 
 # --- Bedrock (RakNet) unconnected ping ---
 
@@ -275,6 +309,7 @@ def status():
         "worlds": worlds_list(),
         "backups": backups_summary(),
         "map": map_info(),
+        "auth": bool(DASH_PASSWORD),
         "checked_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 

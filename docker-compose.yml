@@ -94,6 +94,8 @@ services:
       TZ: "${TZ:-UTC}"
       SERVER_HOST: "host.docker.internal"
       SERVER_PORT: "${SERVER_PORT:-19132}"
+      DASH_USERNAME: "${DASH_USERNAME:-admin}"
+      DASH_PASSWORD: "${DASH_PASSWORD:-}"
     # data and backup-config are writable: the dashboard manages worlds
     # (create/switch/import) via server.properties and the backup config
     volumes:
