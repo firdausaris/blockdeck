@@ -8,9 +8,9 @@ script, and get a server that takes care of itself:
 - **Hot backups** — `.mcworld` snapshots with no downtime, daily and when
   the last player logs out, with retention; optional encrypted off-site
   replication (restic) to another machine
-- **Web dashboard** (password-protected) — live status, players by name,
-  world seed, backup downloads, and one-click backup / update / restart /
-  broadcast
+- **Web dashboard** (password-protected) — live status, players with OP
+  badges, world seed, system stats, activity feed, a full server console,
+  backup downloads, and one-click backup / update / restart / broadcast
 - **World map** — zoomable [uNmINeD](https://unmined.net) render of your
   world, embedded in the dashboard
 - **Multi-world** — create (name + seed), import `.mcworld`, switch the
@@ -30,6 +30,10 @@ git clone https://github.com/firdausaris/blockdeck.git && cd blockdeck
 cp .env.example .env        # review settings (server name, gamemode, allowlist...)
 ./scripts/bootstrap.sh      # installs Docker if needed, starts the server
 ```
+
+For a server you depend on, deploy the latest
+[release](https://github.com/firdausaris/blockdeck/releases) instead of
+`main`: add `--branch v1.0.0` to the clone.
 
 On first run, bootstrap asks whether to **create a new world** (name +
 optional seed) or **import an existing one** (`.mcworld`, `.zip`, or a
@@ -148,12 +152,25 @@ docker compose run --rm -v ./restored:/restored offsite \
 
 ## Dashboard
 
-`http://<server-ip>:8080` (port: `DASH_PORT` in `.env`) shows live status —
-online players by name, server version and uptime, the world seed (parsed
-from `level.dat`, click to copy), recent backups (click to download), the
-world map, and all worlds with switch/create/import controls — plus
-buttons to back up now, check for updates, restart the server, re-render
-the map, and broadcast a message to players.
+`http://<server-ip>:8080` (port: `DASH_PORT` in `.env`) is the control
+panel for the whole stack:
+
+- **Status** — online indicator, MOTD, server version and uptime
+- **Players** — who's online by name, with an OP badge for operators
+- **Seed** — parsed from `level.dat` (click to copy), with a link that
+  opens the seed in Chunkbase's Seed Map
+- **System** — host CPU / RAM / disk usage bars, load average, and the
+  Bedrock process's own RAM/CPU
+- **Backups** — recent backups, click to download as `.mcworld`
+- **Worlds** — switch the active world, create a new one (name + seed),
+  or import an uploaded `.mcworld`
+- **Activity** — joins, leaves, and server restarts as they happen
+  (vanilla Bedrock doesn't log deaths or chat, so those aren't available
+  without an achievements-disabling add-on)
+- **Console** — run any server command (`gamerule`, `give`, `op`, ...)
+  and see the server's response, with command history
+- **Actions** — backup now, check for update, restart, re-render the
+  map, broadcast a message to players
 
 It reads player names from the server log and the player count from the
 Bedrock ping protocol, so it works without any server-side mods.
@@ -185,8 +202,12 @@ docker compose run --rm map render-map   # render right now (or use the
 
 ## Console commands
 
+The dashboard's **Console** card runs any server command from the
+browser. The same channel is available from the shell:
+
 ```bash
 ./scripts/console.sh list                  # who's online
+./scripts/console.sh op Steve              # grant operator
 ./scripts/console.sh say Hello everyone    # broadcast a message
 docker attach bedrock                      # interactive console (detach: Ctrl-p Ctrl-q)
 ```
