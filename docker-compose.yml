@@ -47,6 +47,24 @@ services:
       - ./data:/server:ro
       - ./backup:/config
 
+  # Checks Mojang for new Bedrock releases and restarts the server to
+  # apply them (after warning the players in-game). Needs the docker
+  # socket to exec/restart the server container.
+  updater:
+    build: ./updater
+    container_name: bedrock-updater
+    restart: unless-stopped
+    depends_on:
+      - bedrock
+    environment:
+      TZ: "${TZ:-UTC}"
+      VERSION: "${VERSION:-LATEST}"
+      UPDATE_CRON: "${UPDATE_CRON:-15 * * * *}"
+      UPDATE_WARN_MINUTES: "${UPDATE_WARN_MINUTES:-5}"
+    volumes:
+      - ./data:/server:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
   # Off-site replication of ./backups via restic. Opt-in:
   # set COMPOSE_PROFILES=offsite in .env and configure RESTIC_* there.
   offsite:

@@ -41,14 +41,22 @@ The script stops the server, installs the world as `data/worlds/$LEVEL_NAME`
 
 ## Updating the server
 
-With `VERSION=LATEST` the container downloads the newest Bedrock server
-every time it starts, so updating is just:
+Updates are automatic. The `updater` service checks Mojang's release API
+hourly (`UPDATE_CRON` in `.env`); when a new version is out it warns the
+players in-game (`UPDATE_WARN_MINUTES`, default 5), restarts the server —
+which downloads the new release on startup thanks to `VERSION=LATEST` —
+and verifies it comes back up. The backup service keeps you covered if an
+update ever misbehaves.
 
 ```bash
-docker compose restart bedrock
+docker compose logs -f updater                 # see update checks
+docker compose run --rm updater check-update   # check & update right now
+docker compose restart bedrock                 # manual update, no warning
 ```
 
-(Automatic update checks are coming in a later phase.)
+To hold a version back, pin `VERSION` in `.env` — the updater then stands
+down. Note: the updater needs the docker socket to restart the server, so
+it's as privileged as Docker itself (same trade-off as Watchtower).
 
 ## Backups
 
@@ -123,6 +131,7 @@ docker-compose.yml   server + backup + offsite services
 data/                server binary, configs, worlds (not committed)
 backups/             .mcworld backups (not committed)
 backup/              backup service config (config.yml)
+updater/             automatic update service (Dockerfile, scripts)
 offsite/             restic off-site service (Dockerfile, scripts, ssh key)
 scripts/             bootstrap, world import, restore, console helpers
 ```
@@ -131,6 +140,6 @@ scripts/             bootstrap, world import, restore, console helpers
 
 - [x] Phase 1 — Dockerized server, bootstrap, world import
 - [x] Phase 2 — scheduled hot backups + off-site push (restic) + restore script
-- [ ] Phase 3 — automatic update checks with graceful restart
+- [x] Phase 3 — automatic update checks with graceful restart
 - [ ] Phase 4 — web dashboard (status, players, controls)
 - [ ] Phase 5 — rendered world map (uNmINeD)
