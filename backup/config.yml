@@ -1,0 +1,28 @@
+# Bedrockifier backup configuration
+# Docs: https://github.com/Kaiede/Bedrockifier/wiki/Configuration-File
+
+containers:
+  bedrock:
+    - name: bedrock
+      # Server console over the internal compose network; the password file
+      # is generated from RCON_PASSWORD in .env by scripts/bootstrap.sh
+      ssh: bedrock:2222
+      passwordFile: /config/console-password.yml
+      worlds:
+        # Keep the world name in sync with LEVEL_NAME in .env
+        - /server/worlds/world
+
+schedule:
+  # Daily backup at this time (TZ from .env), plus one whenever the last
+  # player logs out (at most every 30 minutes)
+  daily: "02:00"
+  onLastLogout: true
+  minInterval: 30m
+  runInitialBackup: true
+
+trim:
+  # Keep everything for 2 days, then thin to daily snapshots, dropping
+  # backups older than 14 days but always keeping at least 5
+  trimDays: 2
+  keepDays: 14
+  minKeep: 5

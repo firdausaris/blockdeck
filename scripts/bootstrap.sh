@@ -35,6 +35,18 @@ if [[ ! -f .env ]]; then
     echo "      $REPO_DIR/.env"
 fi
 
+# Generate the console password file the backup service reads, from
+# RCON_PASSWORD in .env (rerun this script after changing it)
+RCON_PW="$(grep -E '^RCON_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
+if [[ -n "$RCON_PW" && "$RCON_PW" != "change-me" ]]; then
+    printf 'password: %s\n' "$RCON_PW" > backup/console-password.yml
+else
+    echo "==> WARNING: set a real RCON_PASSWORD in .env, then rerun this script"
+    echo "    (the backup service can't reach the server console without it)"
+fi
+
+mkdir -p backups
+
 # --- Start ---
 # Use sudo if the docker group membership isn't active in this shell yet
 DOCKER="docker"

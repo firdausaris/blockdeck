@@ -26,5 +26,46 @@ services:
       ALLOW_LIST: "${ALLOW_LIST:-false}"
       ALLOW_LIST_USERS: "${ALLOW_LIST_USERS:-}"
       VIEW_DISTANCE: "${VIEW_DISTANCE:-32}"
+      # Console-over-SSH on port 2222, reachable only from other containers
+      # on the compose network (not published to the LAN). The backup
+      # service uses it for save hold/resume.
+      ENABLE_SSH: "true"
+      RCON_PASSWORD: "${RCON_PASSWORD:?Set RCON_PASSWORD in .env (console password used by the backup service)}"
     volumes:
       - ./data:/data
+
+  backup:
+    image: kaiede/minecraft-bedrock-backup
+    container_name: bedrock-backup
+    restart: unless-stopped
+    depends_on:
+      - bedrock
+    environment:
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - ./backups:/data
+      - ./data:/server:ro
+      - ./backup:/config
+
+  # Off-site replication of ./backups via restic. Opt-in:
+  # set COMPOSE_PROFILES=offsite in .env and configure RESTIC_* there.
+  offsite:
+    build: ./offsite
+    container_name: bedrock-offsite
+    restart: unless-stopped
+    profiles: ["offsite"]
+    environment:
+      TZ: "${TZ:-UTC}"
+      RESTIC_REPOSITORY: "${RESTIC_REPOSITORY:-}"
+      RESTIC_PASSWORD: "${RESTIC_PASSWORD:-}"
+      OFFSITE_CRON: "${OFFSITE_CRON:-30 3 * * *}"
+      KEEP_DAILY: "${KEEP_DAILY:-7}"
+      KEEP_WEEKLY: "${KEEP_WEEKLY:-4}"
+      KEEP_MONTHLY: "${KEEP_MONTHLY:-6}"
+    volumes:
+      - ./backups:/backups:ro
+      - ./offsite/ssh:/ssh:ro
+      - restic-cache:/cache
+
+volumes:
+  restic-cache:
