@@ -1,0 +1,26 @@
+services:
+  bedrock:
+    image: itzg/minecraft-bedrock-server
+    container_name: bedrock
+    restart: unless-stopped
+    # stdin/tty keep the server console available via `docker attach bedrock`
+    stdin_open: true
+    tty: true
+    ports:
+      - "${SERVER_PORT:-19132}:19132/udp"
+      - "${SERVER_PORT_V6:-19133}:19133/udp"
+    environment:
+      EULA: "${EULA:?Set EULA=TRUE in .env to accept the Minecraft EULA}"
+      VERSION: "${VERSION:-LATEST}"
+      SERVER_NAME: "${SERVER_NAME:-Bedrock Server}"
+      LEVEL_NAME: "${LEVEL_NAME:-world}"
+      GAMEMODE: "${GAMEMODE:-survival}"
+      DIFFICULTY: "${DIFFICULTY:-normal}"
+      MAX_PLAYERS: "${MAX_PLAYERS:-10}"
+      ALLOW_CHEATS: "${ALLOW_CHEATS:-false}"
+      ONLINE_MODE: "${ONLINE_MODE:-true}"
+      ALLOW_LIST: "${ALLOW_LIST:-false}"
+      ALLOW_LIST_USERS: "${ALLOW_LIST_USERS:-}"
+      VIEW_DISTANCE: "${VIEW_DISTANCE:-32}"
+    volumes:
+      - ./data:/data

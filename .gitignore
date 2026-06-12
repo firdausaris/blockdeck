@@ -1,0 +1,8 @@
+# Local configuration
+.env
+
+# Server data: binary, configs, worlds, logs
+data/
+
+# World import backups
+*.bak.*
