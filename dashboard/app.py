@@ -584,6 +584,17 @@ def import_world(file: UploadFile, name: str | None = Form(None)):
     return {"ok": True, "message": f"Imported and switched to '{world_name}'."}
 
 
+@app.delete("/api/worlds/{name}")
+def delete_world(name: str):
+    world_dir = WORLDS_DIR / name
+    if not world_dir.is_dir():
+        raise HTTPException(404, f"no such world: {name}")
+    if name == active_world():
+        raise HTTPException(400, "cannot delete the active world — switch to another world first")
+    shutil.rmtree(world_dir)
+    return {"ok": True, "message": f"World '{name}' deleted."}
+
+
 BACKUP_HOST = os.environ.get("BACKUP_HOST", "bedrock-backup")
 BACKUP_TOKEN_FILE = Path("/backup-config/.bedrockifierToken")
 

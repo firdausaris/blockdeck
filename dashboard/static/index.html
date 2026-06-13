@@ -303,6 +303,7 @@ const $ = id => document.getElementById(id);
 
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
 const ICON_RESTORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.5L1 10"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14H6L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8z"/></svg>';
 const ICON_OP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h20"/><path d="M3 14l2-8 5 4 2-6 2 6 5-4 2 8z"/></svg>';
@@ -404,8 +405,10 @@ async function refresh() {
   $('worlds').innerHTML = st.worlds.map(w =>
     `<li><span class="grow">${esc(w.name)}</span>
      <span class="muted">${w.size}</span> ` +
-    (w.active ? `<span class="badge">${ICON_CHECK}active</span>`
-              : `<button class="mini ghost" data-world="${esc(w.name)}">${ICON_PLAY}Activate</button>`) +
+    (w.active
+      ? `<span class="badge">${ICON_CHECK}active</span>`
+      : `<button class="mini ghost" data-world="${esc(w.name)}">${ICON_PLAY}Activate</button>
+         <button class="mini ghost" data-delete="${esc(w.name)}" style="color:var(--red);border-color:var(--red)" title="delete world">${ICON_TRASH}</button>`) +
     '</li>'
   ).join('') || '<li class="muted">no worlds yet</li>';
 }
@@ -452,11 +455,34 @@ $('backups').addEventListener('click', e => {
 });
 
 $('worlds').addEventListener('click', e => {
-  const btn = e.target.closest('[data-world]');
-  if (!btn) return;
-  actJson('/api/worlds/activate', { name: btn.dataset.world },
-    `Switch the active world to "${btn.dataset.world}"? The server restarts and players are disconnected.`);
+  const act = e.target.closest('[data-world]');
+  if (act) {
+    actJson('/api/worlds/activate', { name: act.dataset.world },
+      `Switch the active world to "${act.dataset.world}"? The server restarts and players are disconnected.`);
+    return;
+  }
+  const del = e.target.closest('[data-delete]');
+  if (!del) return;
+  const name = del.dataset.delete;
+  const typed = prompt(`This permanently deletes "${name}" and all its data.\n\nType the world name to confirm:`);
+  if (typed === null) return;
+  if (typed !== name) { toast('name did not match — delete cancelled'); return; }
+  deleteWorld(name);
 });
+
+async function deleteWorld(name) {
+  document.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch(`/api/worlds/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    const body = await r.json();
+    toast(body.message || body.detail || (r.ok ? 'deleted' : 'failed'));
+  } catch (e) {
+    toast('request failed: ' + e);
+  } finally {
+    document.querySelectorAll('button').forEach(b => b.disabled = false);
+    refresh();
+  }
+}
 
 async function createWorld() {
   const name = $('newname').value.trim();
