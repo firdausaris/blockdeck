@@ -31,9 +31,10 @@ cp .env.example .env        # review settings (server name, gamemode, allowlist.
 ./scripts/bootstrap.sh      # installs Docker if needed, starts the server
 ```
 
-For a server you depend on, deploy the latest
-[release](https://github.com/firdausaris/blockdeck/releases) instead of
-`main`: add `--branch v1.0.0` to the clone.
+`bootstrap.sh` automatically switches to the latest
+[release](https://github.com/firdausaris/blockdeck/releases) tag — so a
+plain `git clone` always lands on a stable version. Set `BLOCKDECK_DEV=1`
+before running bootstrap to stay on `main`.
 
 On first run, bootstrap asks whether to **create a new world** (name +
 optional seed) or **import an existing one** (`.mcworld`, `.zip`, or a

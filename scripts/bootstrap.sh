@@ -8,6 +8,22 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
+# --- Release pinning ---
+# Switch to the latest tagged release if we're on an untagged branch (e.g.
+# main after a plain git clone). Set BLOCKDECK_DEV=1 to stay on main.
+if [[ -z "${BLOCKDECK_DEV:-}" ]] && git rev-parse --git-dir >/dev/null 2>&1; then
+    current_tag="$(git describe --exact-match --tags HEAD 2>/dev/null || true)"
+    if [[ -z "$current_tag" ]]; then
+        echo "==> Fetching latest release tag ..."
+        git fetch --tags --quiet
+        latest="$(git tag --sort=-version:refname | head -n1)"
+        if [[ -n "$latest" ]]; then
+            echo "==> Switching to $latest (set BLOCKDECK_DEV=1 to stay on main)"
+            git checkout "$latest" --quiet
+        fi
+    fi
+fi
+
 # --- Docker ---
 if ! command -v docker >/dev/null 2>&1; then
     echo "==> Docker not found, installing via get.docker.com ..."
