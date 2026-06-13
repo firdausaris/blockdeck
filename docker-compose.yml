@@ -40,6 +40,7 @@ services:
       RCON_PASSWORD: "${RCON_PASSWORD:?Set RCON_PASSWORD in .env (console password used by the backup service)}"
       SERVER_PORT: "${SERVER_PORT:-19132}"
       SERVER_PORT_V6: "${SERVER_PORT_V6:-19133}"
+      SERVER_IP: "${SERVER_IP:-}"
     volumes:
       - ./data:/data
 

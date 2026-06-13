@@ -42,6 +42,28 @@ world folder).
 The server listens on UDP **19132**. All gameplay settings live in `.env` —
 edit and run `docker compose up -d` to apply.
 
+## Connecting
+
+The server shows up in the game's **Friends → LAN Games** tab automatically
+(host networking handles the broadcast). To add it as a permanent entry or if
+LAN discovery doesn't appear:
+
+**Play → Servers → Add Server**
+- Server Name: anything
+- Server Address: your server's LAN IP (e.g. `192.168.1.50`)
+- Port: `19132`
+
+**On VMs (Proxmox, etc.):** LAN discovery may show the server but fail to
+connect — the broadcast packet advertises the wrong IP. Fix it by setting
+`SERVER_IP` in `.env` to the VM's LAN IP, then restarting:
+
+```bash
+# in .env:
+SERVER_IP=192.168.1.50
+
+docker compose up -d
+```
+
 > Setting `EULA=TRUE` in `.env` means you accept the
 > [Minecraft EULA](https://minecraft.net/terms).
 
