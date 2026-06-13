@@ -448,6 +448,48 @@ def download_backup(name: str):
     return FileResponse(path, filename=name, media_type="application/zip")
 
 
+@app.post("/api/backups/{name}/restore")
+def restore_backup(name: str):
+    """Restore a backup: extract it, replace the world folder, switch to it."""
+    path = BACKUPS_DIR / name
+    if Path(name).name != name or not name.endswith(".mcworld") or not path.is_file():
+        raise HTTPException(404, "backup not found")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        extracted = Path(tmp) / "world"
+        try:
+            with zipfile.ZipFile(path) as z:
+                z.extractall(extracted)
+        except zipfile.BadZipFile:
+            raise HTTPException(400, "not a valid .mcworld file")
+
+        root = extracted
+        if not (root / "level.dat").exists():
+            hits = list(root.glob("*/level.dat")) + list(root.glob("*/*/level.dat"))
+            if not hits:
+                raise HTTPException(400, "no level.dat found")
+            root = hits[0].parent
+
+        world_name = ""
+        if (root / "levelname.txt").exists():
+            world_name = (root / "levelname.txt").read_text().strip()
+        if not world_name:
+            # Bedrockifier names backups "WorldName YYYY-MM-DD HH-MM-SS.mcworld"
+            world_name = re.sub(r"\s+\d{4}-\d{2}-\d{2}.*$", "", Path(name).stem).strip()
+        if not WORLD_NAME_RE.match(world_name):
+            raise HTTPException(400, f"can't determine world name from '{name}'")
+
+        dest = WORLDS_DIR / world_name
+        if dest.exists():
+            dest.rename(WORLDS_DIR / f"{world_name}.bak.{int(time.time())}")
+
+        shutil.copytree(root, dest)
+        _match_server_owner(dest)
+
+    switch_world(world_name)
+    return {"ok": True, "message": f"Restored '{world_name}' and switched to it."}
+
+
 @app.post("/api/restart")
 def restart():
     try:
